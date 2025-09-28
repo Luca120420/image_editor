@@ -185,6 +185,13 @@
             outline: none;
             box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
         }
+        
+        /* New style for color labels */
+        .color-label {
+            font-size: 12px;
+            color: #333;
+            white-space: nowrap;
+        }
 
         .brush-cursor {
             border: 2px solid #FF6B6B;
@@ -425,12 +432,14 @@
                 <h3>Text</h3>
                 <button id="textBtn" onclick="setTool('text')">Add Text</button>
                 <input type="text" id="textInput" placeholder="Enter text" style="width: 120px;">
-                <div style="display: flex; gap: 5px; margin-top: 5px;">
-                    
+                
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                    <label for="textColor" class="color-label">Text Color</label>
                     <input type="color" id="textColor" value="#000000" title="Text Color">
+                    <label for="textBgColor" class="color-label">BG Color</label>
                     <input type="color" id="textBgColor" value="#ffffff" title="Background Color">
                 </div>
-            </div>
+                </div>
 
             <div class="tool-group">
                 <h3>Text Style</h3>
@@ -509,6 +518,20 @@
         function triggerOverlayUpload() {
             document.getElementById('overlayInput').click();
         }
+        
+        // Helper function to get coordinates regardless of mouse or touch event (NEW)
+        function getCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { 
+                    clientX: e.touches[0].clientX, 
+                    clientY: e.touches[0].clientY 
+                };
+            }
+            return { 
+                clientX: e.clientX, 
+                clientY: e.clientY 
+            };
+        }
 
         function setupEventListeners() {
             const uploadArea = document.querySelector('.upload-area');
@@ -518,17 +541,27 @@
             uploadArea.addEventListener('drop', handleDrop);
             uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
 
-            // Canvas events
+            // Canvas events - MOUSE
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseleave', stopDrawing);
             canvas.addEventListener('click', handleCanvasClick);
+            
+            // Canvas events - TOUCH (NEW)
+            canvas.addEventListener('touchstart', startDrawing, {passive: false}); // passive: false to allow preventDefault
+            canvas.addEventListener('touchmove', draw, {passive: false});     // passive: false to allow preventDefault
+            canvas.addEventListener('touchend', stopDrawing);
 
             // Global mouse events for dragging/resizing
             document.addEventListener('mousedown', handleGlobalMouseDown);
             document.addEventListener('mousemove', handleGlobalMouseMove);
             document.addEventListener('mouseup', handleGlobalMouseUp);
+            
+            // Global touch events for dragging/resizing (NEW)
+            document.addEventListener('touchstart', handleGlobalMouseDown, {passive: false});
+            document.addEventListener('touchmove', handleGlobalMouseMove, {passive: false});
+            document.addEventListener('touchend', handleGlobalMouseUp);
 
             // Keyboard shortcuts
             document.addEventListener('keydown', handleKeyDown);
@@ -822,6 +855,7 @@
             canvas.addEventListener('mouseleave', function() {
                 brushCursor.style.display = 'none';
             });
+            // Note: Brush cursor is intentionally desktop-only, as a touch indicator is difficult and often unnecessary.
         }
 
         function setTool(tool) {
@@ -841,20 +875,27 @@
         }
 
         function startDrawing(e) {
-            if (currentTool === 'text') return;
+            // Prevent scrolling on touch devices when starting to draw on canvas (NEW)
+            if (e.type === 'touchstart') e.preventDefault();
+            
+            if (currentTool === 'text' || !originalImageData) return;
             isDrawing = true;
             saveToUndoStack();
             draw(e);
         }
 
         function draw(e) {
-            if (!isDrawing || currentTool === 'text') return;
+            if (!isDrawing || currentTool === 'text' || !originalImageData) return;
 
+            // Prevent scrolling on touch devices while drawing (NEW)
+            if (e.type === 'touchmove') e.preventDefault(); 
+            
+            const coords = getCoords(e); // Use helper function (NEW)
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            const x = (coords.clientX - rect.left) * scaleX;
+            const y = (coords.clientY - rect.top) * scaleY;
             const brushSize = parseInt(document.getElementById('brushSize').value);
             const strength = parseInt(document.getElementById('effectStrength').value);
 
@@ -863,13 +904,15 @@
 
         function stopDrawing() {
             isDrawing = false;
-            brushCursor.style.display = 'none';
+            if (brushCursor) brushCursor.style.display = 'none'; // Ensure cursor hides on stop for both mouse/touch
         }
 
         function handleCanvasClick(e) {
+            // Note: This function handles both mouse 'click' and simulated touch 'tap' for text placement
             if (currentTool !== 'text') return;
 
             const rect = canvas.getBoundingClientRect();
+            // Use clientX/Y directly for mouse click; getCoords is for mousedown/move/up/touch
             const x = e.clientX - rect.left; // x relative to canvas TL (0, 0)
             const y = e.clientY - rect.top;  // y relative to canvas TL (0, 0)
             
@@ -1093,6 +1136,20 @@
         }
 
         function handleGlobalMouseDown(e) {
+            const coords = getCoords(e); // Use helper function (NEW)
+
+            // Conditional e.preventDefault() for touch events (NEW)
+            if (e.type === 'touchstart') {
+                const isTargetOverlay = e.target.closest('.text-overlay, .image-overlay');
+                // Prevent default (scrolling) only if the touch starts on an overlay or resize handle
+                if (isTargetOverlay && !e.target.closest('.text-content')) {
+                    e.preventDefault(); 
+                } else if (e.target.closest('.text-content')) {
+                    // Allow default for text content to enable editing on mobile
+                    return;
+                }
+            }
+            
             // Check if click is inside an existing text-content area
             if (e.target.closest('.text-content')) {
                 // If it's the selected element's text content, don't start drag/resize
@@ -1102,7 +1159,7 @@
             const overlay = e.target.closest('.text-overlay, .image-overlay');
             
             if (!overlay) {
-                // Clicked outside - clear selection
+                // Clicked/Tapped outside - clear selection
                 document.querySelectorAll('.text-overlay, .image-overlay').forEach(el => {
                     el.classList.remove('selected');
                 });
@@ -1115,35 +1172,44 @@
             if (e.target.classList.contains('resize-handle')) {
                 dragState.isResizing = true;
                 dragState.handle = e.target.classList[1]; // nw, ne, sw, se
-                dragState.startX = e.clientX;
-                dragState.startY = e.clientY;
+                dragState.startX = coords.clientX;
+                dragState.startY = coords.clientY;
                 dragState.startWidth = parseFloat(overlay.style.width) || overlay.offsetWidth;
                 dragState.startHeight = parseFloat(overlay.style.height) || overlay.offsetHeight;
-                e.preventDefault();
+                // Removed redundant e.preventDefault() for mouse
             } else if (e.target.classList.contains('rotate-handle')) {
                 dragState.isRotating = true;
-                dragState.startX = e.clientX;
-                dragState.startY = e.clientY;
+                dragState.startX = coords.clientX;
+                dragState.startY = coords.clientY;
                 const rect = overlay.getBoundingClientRect();
                 dragState.centerX = rect.left + rect.width / 2;
                 dragState.centerY = rect.top + rect.height / 2;
                 dragState.startRotation = getCurrentRotation(overlay);
-                e.preventDefault();
+                // Removed redundant e.preventDefault() for mouse
             } else if (overlay.contains(e.target) && !e.target.classList.contains('text-content')) {
                 dragState.isDragging = true;
                 // Use parseFloat and fallback to 0 for reading style properties (left/top)
-                dragState.startX = e.clientX - (parseFloat(overlay.style.left) || 0);
-                dragState.startY = e.clientY - (parseFloat(overlay.style.top) || 0);
-                e.preventDefault();
+                dragState.startX = coords.clientX - (parseFloat(overlay.style.left) || 0);
+                dragState.startY = coords.clientY - (parseFloat(overlay.style.top) || 0);
+                // Removed redundant e.preventDefault() for mouse
             }
         }
 
         function handleGlobalMouseMove(e) {
+            // Prevent default touch behavior (e.g., scrolling) while dragging/resizing (NEW)
+            if (e.type === 'touchmove') {
+                if (dragState.isDragging || dragState.isResizing || dragState.isRotating) {
+                    e.preventDefault(); 
+                }
+            }
+            
             if (!selectedElement) return;
             
+            const coords = getCoords(e); // Use helper function (NEW)
+            
             if (dragState.isDragging) {
-                const newX = e.clientX - dragState.startX;
-                const newY = e.clientY - dragState.startY;
+                const newX = coords.clientX - dragState.startX;
+                const newY = coords.clientY - dragState.startY;
                 
                 // Get canvas dimensions
                 const canvasRect = canvas.getBoundingClientRect();
@@ -1165,8 +1231,8 @@
                 selectedElement.style.top = Math.max(minTop, Math.min(newY, maxTop)) + 'px';
                 
             } else if (dragState.isResizing) {
-                const deltaX = e.clientX - dragState.startX;
-                const deltaY = e.clientY - dragState.startY;
+                const deltaX = coords.clientX - dragState.startX;
+                const deltaY = coords.clientY - dragState.startY;
                 
                 let newWidth = dragState.startWidth;
                 let newHeight = dragState.startHeight;
@@ -1195,22 +1261,34 @@
                 if (selectedElement.classList.contains('text-overlay')) {
                     // Font size scaling based on new height
                     const textContent = selectedElement.querySelector('.text-content');
-                    const newFontSize = newHeight * 0.4;
-                    textContent.style.fontSize = newFontSize + 'px';
-                    updateControlsText(selectedElement, Math.round(newFontSize) + 'px', getCurrentRotation(selectedElement));
+                    // Update start dimensions and coordinates for continuous scaling without accumulating error
+                    const ratio = newHeight / dragState.startHeight;
+                    const currentFontSize = parseFloat(selectedElement.style.fontSize) || 24;
+                    const finalFontSize = Math.max(8, currentFontSize * ratio);
+                    
+                    selectedElement.style.fontSize = finalFontSize + 'px';
+                    
+                    updateControlsText(selectedElement, Math.round(finalFontSize) + 'px', getCurrentRotation(selectedElement));
+                    
+                    // Update drag state for continuous, correct resizing
+                    dragState.startWidth = newWidth;
+                    dragState.startHeight = newHeight;
+                    dragState.startX = coords.clientX;
+                    dragState.startY = coords.clientY;
+                    
                 } else {
                     updateControlsText(selectedElement, `${Math.round(newWidth)}×${Math.round(newHeight)}`, getCurrentRotation(selectedElement));
                 }
                 
             } else if (dragState.isRotating) {
-                const angle = Math.atan2(e.clientY - dragState.centerY, e.clientX - dragState.centerX);
+                const angle = Math.atan2(coords.clientY - dragState.centerY, coords.clientX - dragState.centerX);
                 const rotation = (angle * 180 / Math.PI) + 90;
                 const newRotation = Math.round(rotation / 5) * 5; // Snap to 5-degree increments
                 
                 selectedElement.style.transform = `rotate(${newRotation}deg)`;
                 
                 const sizeText = selectedElement.classList.contains('text-overlay') ? 
-                    Math.round(parseFloat(selectedElement.querySelector('.text-content').style.fontSize || selectedElement.style.fontSize)) + 'px' :
+                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' : // Use overlay's style.fontSize
                     `${Math.round(parseFloat(selectedElement.style.width))}×${Math.round(parseFloat(selectedElement.style.height))}`;
                     
                 updateControlsText(selectedElement, sizeText, newRotation);
@@ -1361,10 +1439,10 @@
                         
                         // Text Styling
                         const computedStyle = window.getComputedStyle(overlay);
-                        const textContentStyle = window.getComputedStyle(textContent);
+                        // Using overlay's computed style, but scale font size
                         
                         // Calculate font size (scaling the visual size)
-                        const baseFontSize = parseFloat(textContentStyle.fontSize) || 24;
+                        const baseFontSize = parseFloat(computedStyle.fontSize) || 24;
                         const fontSize = baseFontSize * Math.min(scaleX, scaleY);
                         
                         const fontWeight = computedStyle.fontWeight || 'normal';
