@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Image Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            min-width: 150px;
+        }
+
+        .tool-group h3 {
+            color: #333;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 4px;
+        }
+
+        .upload-area {
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px;
+            background: linear-gradient(45deg, #f0f8ff, #e6f3ff);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #45a049;
+            background: linear-gradient(45deg, #e6f3ff, #d0e7ff);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.drag-over {
+            border-color: #2196F3;
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            transform: scale(1.02);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-top: 15px;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px auto;
+            display: none;
+            max-width: 100%;
+            overflow: auto;
+            background: #f0f0f0;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        #canvas {
+            display: block;
+            max-width: 100%;
+            border-radius: 10px;
+            cursor: crosshair;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(45deg, #FF6B6B, #FF5252);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        input[type="range"] {
+            width: 120px;
+            margin: 5px 0;
+            appearance: none;
+            height: 6px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="color"], input[type="text"], input[type="number"], select {
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="color"]:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+        
+        /* New style for color labels */
+        .color-label {
+            font-size: 12px;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .brush-cursor {
+            border: 2px solid #FF6B6B;
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .text-overlay, .image-overlay {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            z-index: 100;
+            border: 2px dashed transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .text-overlay:hover, .text-overlay.selected,
+        .image-overlay:hover, .image-overlay.selected {
+            border-color: #4CAF50;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nw-resize;
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .text-overlay:hover .resize-handle, .text-overlay.selected .resize-handle,
+        .image-overlay:hover .resize-handle, .image-overlay.selected .resize-handle {
+            opacity: 1;
+        }
+
+        .resize-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
+        .resize-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .resize-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .resize-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+
+        .rotate-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #FF6B6B;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: grab;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .text-overlay:hover .rotate-handle, .text-overlay.selected .rotate-handle,
+        .image-overlay:hover .rotate-handle, .image-overlay.selected .rotate-handle {
+            opacity: 1;
+        }
+
+        .rotate-handle:active {
+            cursor: grabbing;
+        }
+
+        .overlay-controls {
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 102;
+        }
+
+        .text-overlay.selected .overlay-controls,
+        .image-overlay.selected .overlay-controls {
+            display: block;
+        }
+
+        .image-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .download-section {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .status-bar {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-preview {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            margin-left: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+        }
+
+        .controls-row label {
+            min-width: 80px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .tool-group {
+                min-width: auto;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+            
+            body {
+                padding: 10px;
+            }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Advanced Image Editor</h1>
+            <p>Upload, edit, and enhance your images with powerful effects</p>
+        </div>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <h3>Image</h3>
+                <button onclick="triggerFileUpload()">Upload Image</button>
+                <button onclick="resetImage()">Reset</button>
+                <button onclick="undoLastAction()">Undo</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Effects</h3>
+                <button id="pixelateBtn" onclick="setTool('pixelate')">Pixelate</button>
+                <button id="blurBtn" onclick="setTool('blur')">Blur</button>
+                <button id="brightenBtn" onclick="setTool('brighten')">Brighten</button>
+                <button id="darkenBtn" onclick="setTool('darken')">Darken</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Settings</h3>
+                <div class="controls-row">
+                    <label>Brush Size:</label>
+                    <input type="range" id="brushSize" min="5" max="100" value="20" oninput="updateBrushSize()">
+                    <span id="brushSizeDisplay">20</span>
+                </div>
+                
+                <div class="controls-row">
+                    <label>Strength:</label>
+                    <input type="range" id="effectStrength" min="1" max="100" value="50" oninput="updateStrength()">
+                    <span id="strengthDisplay">50</span>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>Overlay</h3>
+                <button onclick="triggerOverlayUpload()">Add Image</button>
+                <input type="file" id="overlayInput" accept="image/*" style="display: none;" onchange="handleOverlaySelect(event)">
+                <button onclick="clearOverlays()">Clear All</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Text</h3>
+                <button id="textBtn" onclick="setTool('text')">Add Text</button>
+                <input type="text" id="textInput" placeholder="Enter text" style="width: 120px;">
+                
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                    <label for="textColor" class="color-label">Text Color</label>
+                    <input type="color" id="textColor" value="#000000" title="Text Color">
+                    <label for="textBgColor" class="color-label">BG Color</label>
+                    <input type="color" id="textBgColor" value="#ffffff" title="Background Color">
+                </div>
+                </div>
+
+            <div class="tool-group">
+                <h3>Text Style</h3>
+                <select id="fontFamily" style="width: 100%; margin-bottom: 5px;">
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Comic Sans MS">Comic Sans MS</option>
+                    <option value="Impact">Impact</option>
+                </select>
+                <div class="controls-row">
+                    <input type="number" id="fontSize" value="24" min="8" max="200" placeholder="Size" style="width: 60px;">
+                    <label><input type="checkbox" id="fontBold"> Bold</label>
+                    <label><input type="checkbox" id="fontItalic"> Italic</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-area" onclick="triggerFileUpload()">
+            <div style="font-size: 4em; color: #4CAF50;">📸</div>
+            <div class="upload-text">Click here or drag and drop an image to start editing</div>
+            <div style="margin-top: 10px; color: #999;">Supports JPG, PNG, GIF, and WebP formats</div>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div>Processing image...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="download-section" style="display: none;" id="downloadSection">
+            <button onclick="downloadImage()" style="background: linear-gradient(45deg, #2196F3, #1976D2); font-size: 1.1em; padding: 15px 30px;">
+                💾 Download Edited Image
+            </button>
+            <button onclick="saveAsJPEG()" style="background: linear-gradient(45deg, #FF9800, #F57C00); font-size: 1em; padding: 12px 25px; margin-left: 10px;">
+                📷 Save as JPEG
+            </button>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">Ready to edit</span>
+            <span id="imageInfo"></span>
+        </div>
+    </div>
+
+    <script>
+        let canvas, ctx, originalImageData, pixelatedImageData, currentTool = 'pixelate';
+        let isDrawing = false, brushCursor, undoStack = [];
+        let textElements = [], imageOverlays = [];
+        let selectedElement = null;
+        let dragState = { isDragging: false, isResizing: false, isRotating: false, startX: 0, startY: 0, handle: null };
+        const CANVAS_CONTAINER_PADDING = 20; // Matches CSS .canvas-container padding
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            setupEventListeners();
+            createBrushCursor();
+            updateStatus('Ready to edit - Upload an image to begin');
+        });
+
+        function triggerFileUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        function triggerOverlayUpload() {
+            document.getElementById('overlayInput').click();
+        }
+        
+        // Helper function to get coordinates regardless of mouse or touch event (NEW)
+        function getCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { 
+                    clientX: e.touches[0].clientX, 
+                    clientY: e.touches[0].clientY 
+                };
+            }
+            return { 
+                clientX: e.clientX, 
+                clientY: e.clientY 
+            };
+        }
+
+        function setupEventListeners() {
+            const uploadArea = document.querySelector('.upload-area');
+
+            // Drag and drop
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('drop', handleDrop);
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+
+            // Canvas events - MOUSE
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            canvas.addEventListener('click', handleCanvasClick);
+            
+            // Canvas events - TOUCH (NEW)
+            canvas.addEventListener('touchstart', startDrawing, {passive: false}); // passive: false to allow preventDefault
+            canvas.addEventListener('touchmove', draw, {passive: false});     // passive: false to allow preventDefault
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Global mouse events for dragging/resizing
+            document.addEventListener('mousedown', handleGlobalMouseDown);
+            document.addEventListener('mousemove', handleGlobalMouseMove);
+            document.addEventListener('mouseup', handleGlobalMouseUp);
+            
+            // Global touch events for dragging/resizing (NEW)
+            document.addEventListener('touchstart', handleGlobalMouseDown, {passive: false});
+            document.addEventListener('touchmove', handleGlobalMouseMove, {passive: false});
+            document.addEventListener('touchend', handleGlobalMouseUp);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleKeyDown(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'z':
+                        e.preventDefault();
+                        undoLastAction();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        downloadImage();
+                        break;
+                }
+            }
+            
+            // Delete selected element
+            if (e.key === 'Delete' && selectedElement) {
+                deleteSelectedElement();
+            }
+        }
+
+        function deleteSelectedElement() {
+            if (!selectedElement) return;
+            
+            selectedElement.remove();
+            if (selectedElement.classList.contains('text-overlay')) {
+                textElements = textElements.filter(el => el !== selectedElement);
+                updateStatus('Text element deleted');
+            } else {
+                imageOverlays = imageOverlays.filter(el => el !== selectedElement);
+                updateStatus('Image overlay deleted');
+            }
+            selectedElement = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                loadImage(files[0]);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.add('show');
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = '0%';
+            
+            // Simulate loading progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(hideLoading, 500);
+                }
+                progressFill.style.width = progress + '%';
+            }, 100);
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.remove('show');
+        }
+
+        function loadImage(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file');
+                return;
+            }
+
+            showLoading();
+            updateStatus('Loading image...');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    setupCanvas(img);
+                    document.querySelector('.upload-area').style.display = 'none';
+                    document.querySelector('.canvas-container').style.display = 'block';
+                    document.getElementById('downloadSection').style.display = 'block';
+                    updateStatus('Image loaded successfully - Start editing!');
+                    updateImageInfo(img.width, img.height);
+                    hideLoading();
+                };
+                img.onerror = function() {
+                    hideLoading();
+                    updateStatus('Error loading image');
+                    alert('Error loading image. Please try a different file.');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                loadImage(file);
+            }
+        }
+
+        function handleOverlaySelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                addImageOverlay(file);
+            }
+            e.target.value = '';
+        }
+
+        function addImageOverlay(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file');
+                return;
+            }
+
+            updateStatus('Loading image overlay...');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    createImageOverlay(img, e.target.result);
+                    updateStatus('Image overlay added - drag to position, use handles to resize/rotate');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createImageOverlay(img, src) {
+            const overlay = document.createElement('div');
+            overlay.className = 'image-overlay';
+            
+            // Scale image to reasonable size
+            const maxSize = 200;
+            const scale = Math.min(maxSize / img.width, maxSize / img.height);
+            const width = img.width * scale;
+            const height = img.height * scale;
+            
+            // Position near the top-left of the canvas, but OFFSET by padding to align correctly
+            const initialLeft = 100 + CANVAS_CONTAINER_PADDING;
+            const initialTop = 100 + CANVAS_CONTAINER_PADDING;
+
+            overlay.style.position = 'absolute';
+            overlay.style.left = initialLeft + 'px';
+            overlay.style.top = initialTop + 'px';
+            overlay.style.width = width + 'px';
+            overlay.style.height = height + 'px';
+            overlay.style.transform = 'rotate(0deg)';
+            overlay.innerHTML = `
+                <img src="${src}" draggable="false">
+                <div class="resize-handle nw"></div>
+                <div class="resize-handle ne"></div>
+                <div class="resize-handle sw"></div>
+                <div class="resize-handle se"></div>
+                <div class="rotate-handle"></div>
+                <div class="overlay-controls">
+                    Size: ${Math.round(width)}×${Math.round(height)} | Double-click to delete
+                </div>
+            `;
+            
+            setupOverlayEvents(overlay, 'image');
+            document.querySelector('.canvas-container').appendChild(overlay);
+            imageOverlays.push(overlay);
+        }
+
+        function setupCanvas(img) {
+            // Limit canvas size for performance
+            const maxCanvasSize = 1920;
+            let canvasWidth = img.width;
+            let canvasHeight = img.height;
+            
+            if (img.width > maxCanvasSize || img.height > maxCanvasSize) {
+                const scale = Math.min(maxCanvasSize / img.width, maxCanvasSize / img.height);
+                canvasWidth = img.width * scale;
+                canvasHeight = img.height * scale;
+            }
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+            
+            // Ensure originalImageData is a deep copy
+            const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            originalImageData = ctx.createImageData(tempImageData.width, tempImageData.height);
+            originalImageData.data.set(tempImageData.data);
+            
+            // Generate pixelated version
+            generatePixelatedVersion();
+            
+            saveToUndoStack();
+        }
+
+        function generatePixelatedVersion() {
+            if (!originalImageData) return;
+            
+            // Get pixel size based on strength setting (inverted - higher strength = smaller pixels)
+            const strength = parseInt(document.getElementById('effectStrength').value);
+            const pixelSize = Math.max(2, Math.floor((101 - strength) / 5));
+            
+            // Create a new ImageData object for the pixelated version
+            pixelatedImageData = ctx.createImageData(canvas.width, canvas.height); 
+            const sourceData = originalImageData.data; // Use the original image data
+            
+            // Apply pixelation with averaging directly to pixelatedData
+            pixelateImageWithAveraging(sourceData, pixelatedImageData, canvas.width, canvas.height, pixelSize);
+            
+            updateStatus(`Pixelated version generated (${pixelSize}px blocks) - use brush to reveal pixelated areas`);
+        }
+
+        function pixelateImageWithAveraging(sourceData, targetData, width, height, blockSize) {
+            const source = sourceData;
+            const target = targetData.data;
+            
+            // Process each block
+            for (let blockY = 0; blockY < height; blockY += blockSize) {
+                for (let blockX = 0; blockX < width; blockX += blockSize) {
+                    
+                    // Calculate average color for this block
+                    let totalR = 0, totalG = 0, totalB = 0, totalA = 0;
+                    let pixelCount = 0;
+                    
+                    const maxY = Math.min(blockY + blockSize, height);
+                    const maxX = Math.min(blockX + blockSize, width);
+                    
+                    // Sum all pixels in the block
+                    for (let y = blockY; y < maxY; y++) {
+                        for (let x = blockX; x < maxX; x++) {
+                            const index = (y * width + x) * 4;
+                            totalR += source[index];
+                            totalG += source[index + 1];
+                            totalB += source[index + 2];
+                            totalA += source[index + 3];
+                            pixelCount++;
+                        }
+                    }
+                    
+                    // Calculate average
+                    const avgR = Math.round(totalR / pixelCount);
+                    const avgG = Math.round(totalG / pixelCount);
+                    const avgB = Math.round(totalB / pixelCount);
+                    const avgA = Math.round(totalA / pixelCount);
+                    
+                    // Apply average color to entire block
+                    for (let y = blockY; y < maxY; y++) {
+                        for (let x = blockX; x < maxX; x++) {
+                            const index = (y * width + x) * 4;
+                            target[index] = avgR;
+                            target[index + 1] = avgG;
+                            target[index + 2] = avgB;
+                            target[index + 3] = avgA;
+                        }
+                    }
+                }
+            }
+        }
+
+        function createBrushCursor() {
+            brushCursor = document.createElement('div');
+            brushCursor.className = 'brush-cursor';
+            document.body.appendChild(brushCursor);
+            
+            canvas.addEventListener('mousemove', function(e) {
+                // Only show brush if not in text mode and cursor is over canvas
+                if (currentTool !== 'text') {
+                    const size = parseInt(document.getElementById('brushSize').value);
+                    brushCursor.style.width = size + 'px';
+                    brushCursor.style.height = size + 'px';
+                    
+                    // Position relative to the window page coordinates
+                    brushCursor.style.left = (e.pageX - size/2) + 'px';
+                    brushCursor.style.top = (e.pageY - size/2) + 'px';
+                    brushCursor.style.display = 'block';
+                } else {
+                    brushCursor.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseleave', function() {
+                brushCursor.style.display = 'none';
+            });
+            // Note: Brush cursor is intentionally desktop-only, as a touch indicator is difficult and often unnecessary.
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-group button').forEach(btn => btn.classList.remove('active'));
+            const toolBtn = document.getElementById(tool + 'Btn');
+            if (toolBtn) toolBtn.classList.add('active');
+            
+            canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
+            
+            // Regenerate pixelated version if strength changed and pixelate tool is active
+            if (tool === 'pixelate' && originalImageData) {
+                generatePixelatedVersion();
+            }
+            
+            updateStatus(`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool selected`);
+        }
+
+        function startDrawing(e) {
+            // Prevent scrolling on touch devices when starting to draw on canvas (NEW)
+            if (e.type === 'touchstart') e.preventDefault();
+            
+            if (currentTool === 'text' || !originalImageData) return;
+            isDrawing = true;
+            saveToUndoStack();
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing || currentTool === 'text' || !originalImageData) return;
+
+            // Prevent scrolling on touch devices while drawing (NEW)
+            if (e.type === 'touchmove') e.preventDefault(); 
+            
+            const coords = getCoords(e); // Use helper function (NEW)
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (coords.clientX - rect.left) * scaleX;
+            const y = (coords.clientY - rect.top) * scaleY;
+            const brushSize = parseInt(document.getElementById('brushSize').value);
+            const strength = parseInt(document.getElementById('effectStrength').value);
+
+            applyEffect(x, y, brushSize, strength);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            if (brushCursor) brushCursor.style.display = 'none'; // Ensure cursor hides on stop for both mouse/touch
+        }
+
+        function handleCanvasClick(e) {
+            // Note: This function handles both mouse 'click' and simulated touch 'tap' for text placement
+            if (currentTool !== 'text') return;
+
+            const rect = canvas.getBoundingClientRect();
+            // Use clientX/Y directly for mouse click; getCoords is for mousedown/move/up/touch
+            const x = e.clientX - rect.left; // x relative to canvas TL (0, 0)
+            const y = e.clientY - rect.top;  // y relative to canvas TL (0, 0)
+            
+            addTextElement(x, y);
+        }
+
+        function applyEffect(x, y, size, strength) {
+            const halfSize = Math.floor(size / 2);
+            const startX = Math.max(0, x - halfSize);
+            const startY = Math.max(0, y - halfSize);
+            const width = Math.min(size, canvas.width - startX);
+            const height = Math.min(size, canvas.height - startY);
+            
+            if (currentTool === 'pixelate') {
+                // Apply pixelated data using circular brush
+                if (pixelatedImageData) {
+                    // Ensure startX, startY, width, height are integers
+                    const startXInt = Math.floor(startX);
+                    const startYInt = Math.floor(startY);
+                    const widthInt = Math.ceil(width);
+                    const heightInt = Math.ceil(height);
+                    
+                    applyPixelatedBrush(startXInt, startYInt, widthInt, heightInt, x, y, halfSize);
+                }
+            } else {
+                // Apply other effects as before
+                const imageData = ctx.getImageData(startX, startY, width, height);
+                
+                switch(currentTool) {
+                    case 'blur':
+                        blurEffect(imageData, Math.max(1, strength/20));
+                        break;
+                    case 'brighten':
+                        brightnessEffect(imageData, strength);
+                        break;
+                    case 'darken':
+                        brightnessEffect(imageData, -strength);
+                        break;
+                }
+                
+                ctx.putImageData(imageData, startX, startY);
+            }
+        }
+
+        function applyPixelatedBrush(startX, startY, width, height, centerX, centerY, radius) {
+            // Use getImageData/putImageData over the affected area
+            const currentImageData = ctx.getImageData(startX, startY, width, height);
+            const currentData = currentImageData.data;
+            const pixelatedData = pixelatedImageData.data;
+            
+            // Apply pixelated effect with circular brush
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const actualX = startX + x;
+                    const actualY = startY + y;
+                    
+                    // Check if pixel is within brush radius
+                    const dx = actualX - centerX;
+                    const dy = actualY - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance <= radius) {
+                        const sourceIndex = (actualY * canvas.width + actualX) * 4;
+                        const targetIndex = (y * width + x) * 4;
+                        
+                        // Check boundary for pixelatedData access
+                        if (sourceIndex + 3 < pixelatedData.length) {
+                            // Copy pixelated pixel
+                            currentData[targetIndex] = pixelatedData[sourceIndex];
+                            currentData[targetIndex + 1] = pixelatedData[sourceIndex + 1];
+                            currentData[targetIndex + 2] = pixelatedData[sourceIndex + 2];
+                            currentData[targetIndex + 3] = pixelatedData[sourceIndex + 3];
+                        }
+                    }
+                }
+            }
+            
+            ctx.putImageData(currentImageData, startX, startY);
+        }
+
+        function blurEffect(imageData, radius) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            const copy = new Uint8ClampedArray(data);
+            
+            radius = Math.max(1, Math.floor(radius));
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let r = 0, g = 0, b = 0, a = 0, count = 0;
+                    
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            const ny = y + dy;
+                            const nx = x + dx;
+                            
+                            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                const index = (ny * width + nx) * 4;
+                                r += copy[index];
+                                g += copy[index + 1];
+                                b += copy[index + 2];
+                                a += copy[index + 3];
+                                count++;
+                            }
+                        }
+                    }
+                    
+                    const index = (y * width + x) * 4;
+                    data[index] = r / count;
+                    data[index + 1] = g / count;
+                    data[index + 2] = b / count;
+                    data[index + 3] = a / count;
+                }
+            }
+        }
+
+        function brightnessEffect(imageData, adjustment) {
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.max(0, Math.min(255, data[i] + adjustment));
+                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + adjustment));
+                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + adjustment));
+            }
+        }
+
+        function addTextElement(x, y) {
+            const text = document.getElementById('textInput').value || 'Sample Text';
+            const textColor = document.getElementById('textColor').value;
+            const bgColor = document.getElementById('textBgColor').value;
+            const fontSize = parseInt(document.getElementById('fontSize').value);
+            const fontFamily = document.getElementById('fontFamily').value;
+            const fontBold = document.getElementById('fontBold').checked;
+            const fontItalic = document.getElementById('fontItalic').checked;
+            
+            const textElement = document.createElement('div');
+            textElement.className = 'text-overlay';
+            textElement.innerHTML = `
+                <div class="text-content" contenteditable="true">${text}</div>
+                <div class="resize-handle nw"></div>
+                <div class="resize-handle ne"></div>
+                <div class="resize-handle sw"></div>
+                <div class="resize-handle se"></div>
+                <div class="rotate-handle"></div>
+                <div class="overlay-controls">
+                    Size: ${fontSize}px | Rotation: 0° | Press Delete to remove
+                </div>
+            `;
+            
+            // FIX 1: Add padding offset to x/y so the overlay's CSS position aligns with the canvas
+            const containerRelativeLeft = x + CANVAS_CONTAINER_PADDING;
+            const containerRelativeTop = y + CANVAS_CONTAINER_PADDING;
+            
+            textElement.style.position = 'absolute';
+            textElement.style.left = containerRelativeLeft + 'px';
+            textElement.style.top = containerRelativeTop + 'px';
+            textElement.style.color = textColor;
+            textElement.style.backgroundColor = bgColor;
+            textElement.style.fontSize = fontSize + 'px';
+            textElement.style.fontFamily = fontFamily;
+            textElement.style.fontWeight = fontBold ? 'bold' : 'normal';
+            textElement.style.fontStyle = fontItalic ? 'italic' : 'normal';
+            textElement.style.padding = '8px';
+            textElement.style.borderRadius = '4px';
+            textElement.style.transform = 'rotate(0deg)';
+            textElement.style.minWidth = '50px';
+            textElement.style.minHeight = '30px';
+            textElement.style.lineHeight = '1.2';
+            
+            // Make text editable
+            const textContent = textElement.querySelector('.text-content');
+            textContent.addEventListener('blur', function() {
+                updateStatus('Text updated');
+            });
+            
+            setupOverlayEvents(textElement, 'text');
+            document.querySelector('.canvas-container').appendChild(textElement);
+            textElements.push(textElement);
+            updateStatus('Text added - click to edit, drag to move, use handles to resize/rotate');
+            
+            // Auto-select the new text element
+            setTimeout(() => {
+                selectElement(textElement);
+            }, 100);
+        }
+
+        function selectElement(element) {
+            // Clear previous selection
+            document.querySelectorAll('.text-overlay, .image-overlay').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedElement = element;
+        }
+
+        function setupOverlayEvents(element, type) {
+            // Double click to delete
+            element.addEventListener('dblclick', function(e) {
+                if (e.target.classList.contains('text-content')) return; // Don't delete when editing text
+                e.stopPropagation();
+                deleteElement(element, type);
+            });
+            
+            // Single click to select
+            element.addEventListener('click', function(e) {
+                e.stopPropagation();
+                selectElement(element);
+            });
+        }
+
+        function deleteElement(element, type) {
+            element.remove();
+            if (type === 'text') {
+                textElements = textElements.filter(el => el !== element);
+            } else {
+                imageOverlays = imageOverlays.filter(el => el !== element);
+            }
+            selectedElement = null;
+            updateStatus(`${type} element deleted`);
+        }
+
+        function handleGlobalMouseDown(e) {
+            const coords = getCoords(e); // Use helper function (NEW)
+
+            // Conditional e.preventDefault() for touch events (NEW)
+            if (e.type === 'touchstart') {
+                const isTargetOverlay = e.target.closest('.text-overlay, .image-overlay');
+                // Prevent default (scrolling) only if the touch starts on an overlay or resize handle
+                if (isTargetOverlay && !e.target.closest('.text-content')) {
+                    e.preventDefault(); 
+                } else if (e.target.closest('.text-content')) {
+                    // Allow default for text content to enable editing on mobile
+                    return;
+                }
+            }
+            
+            // Check if click is inside an existing text-content area
+            if (e.target.closest('.text-content')) {
+                // If it's the selected element's text content, don't start drag/resize
+                if (selectedElement && selectedElement.contains(e.target)) return;
+            }
+
+            const overlay = e.target.closest('.text-overlay, .image-overlay');
+            
+            if (!overlay) {
+                // Clicked/Tapped outside - clear selection
+                document.querySelectorAll('.text-overlay, .image-overlay').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                selectedElement = null;
+                return;
+            }
+            
+            selectElement(overlay);
+            
+            if (e.target.classList.contains('resize-handle')) {
+                dragState.isResizing = true;
+                dragState.handle = e.target.classList[1]; // nw, ne, sw, se
+                dragState.startX = coords.clientX;
+                dragState.startY = coords.clientY;
+                dragState.startWidth = parseFloat(overlay.style.width) || overlay.offsetWidth;
+                dragState.startHeight = parseFloat(overlay.style.height) || overlay.offsetHeight;
+                // Removed redundant e.preventDefault() for mouse
+            } else if (e.target.classList.contains('rotate-handle')) {
+                dragState.isRotating = true;
+                dragState.startX = coords.clientX;
+                dragState.startY = coords.clientY;
+                const rect = overlay.getBoundingClientRect();
+                dragState.centerX = rect.left + rect.width / 2;
+                dragState.centerY = rect.top + rect.height / 2;
+                dragState.startRotation = getCurrentRotation(overlay);
+                // Removed redundant e.preventDefault() for mouse
+            } else if (overlay.contains(e.target) && !e.target.classList.contains('text-content')) {
+                dragState.isDragging = true;
+                // Use parseFloat and fallback to 0 for reading style properties (left/top)
+                dragState.startX = coords.clientX - (parseFloat(overlay.style.left) || 0);
+                dragState.startY = coords.clientY - (parseFloat(overlay.style.top) || 0);
+                // Removed redundant e.preventDefault() for mouse
+            }
+        }
+
+        function handleGlobalMouseMove(e) {
+            // Prevent default touch behavior (e.g., scrolling) while dragging/resizing (NEW)
+            if (e.type === 'touchmove') {
+                if (dragState.isDragging || dragState.isResizing || dragState.isRotating) {
+                    e.preventDefault(); 
+                }
+            }
+            
+            if (!selectedElement) return;
+            
+            const coords = getCoords(e); // Use helper function (NEW)
+            
+            if (dragState.isDragging) {
+                const newX = coords.clientX - dragState.startX;
+                const newY = coords.clientY - dragState.startY;
+                
+                // Get canvas dimensions
+                const canvasRect = canvas.getBoundingClientRect();
+                const overlayWidth = selectedElement.offsetWidth;
+                const overlayHeight = selectedElement.offsetHeight;
+
+                // FIX 2: Correct Dragging Bounds
+                // The minimum position is the container padding value.
+                const minLeft = CANVAS_CONTAINER_PADDING;
+                const minTop = CANVAS_CONTAINER_PADDING;
+                
+                // The maximum position is the canvas right/bottom edge minus the overlay size.
+                // Canvas right edge relative to container TL: CANVAS_CONTAINER_PADDING + canvasRect.width
+                const maxLeft = CANVAS_CONTAINER_PADDING + canvasRect.width - overlayWidth;
+                const maxTop = CANVAS_CONTAINER_PADDING + canvasRect.height - overlayHeight;
+
+                // Ensure overlay movement is constrained between the min and max bounds
+                selectedElement.style.left = Math.max(minLeft, Math.min(newX, maxLeft)) + 'px';
+                selectedElement.style.top = Math.max(minTop, Math.min(newY, maxTop)) + 'px';
+                
+            } else if (dragState.isResizing) {
+                const deltaX = coords.clientX - dragState.startX;
+                const deltaY = coords.clientY - dragState.startY;
+                
+                let newWidth = dragState.startWidth;
+                let newHeight = dragState.startHeight;
+                
+                // Use parseFloat with fallback for reading style properties
+                const currentLeft = parseFloat(selectedElement.style.left) || 0;
+                const currentTop = parseFloat(selectedElement.style.top) || 0;
+
+                if (dragState.handle.includes('e')) newWidth += deltaX;
+                if (dragState.handle.includes('w')) {
+                    newWidth -= deltaX;
+                    selectedElement.style.left = (currentLeft + deltaX) + 'px';
+                }
+                if (dragState.handle.includes('s')) newHeight += deltaY;
+                if (dragState.handle.includes('n')) {
+                    newHeight -= deltaY;
+                    selectedElement.style.top = (currentTop + deltaY) + 'px';
+                }
+                
+                newWidth = Math.max(30, newWidth);
+                newHeight = Math.max(20, newHeight);
+                
+                selectedElement.style.width = newWidth + 'px';
+                selectedElement.style.height = newHeight + 'px';
+                
+                if (selectedElement.classList.contains('text-overlay')) {
+                    // Font size scaling based on new height
+                    const textContent = selectedElement.querySelector('.text-content');
+                    // Update start dimensions and coordinates for continuous scaling without accumulating error
+                    const ratio = newHeight / dragState.startHeight;
+                    const currentFontSize = parseFloat(selectedElement.style.fontSize) || 24;
+                    const finalFontSize = Math.max(8, currentFontSize * ratio);
+                    
+                    selectedElement.style.fontSize = finalFontSize + 'px';
+                    
+                    updateControlsText(selectedElement, Math.round(finalFontSize) + 'px', getCurrentRotation(selectedElement));
+                    
+                    // Update drag state for continuous, correct resizing
+                    dragState.startWidth = newWidth;
+                    dragState.startHeight = newHeight;
+                    dragState.startX = coords.clientX;
+                    dragState.startY = coords.clientY;
+                    
+                } else {
+                    updateControlsText(selectedElement, `${Math.round(newWidth)}×${Math.round(newHeight)}`, getCurrentRotation(selectedElement));
+                }
+                
+            } else if (dragState.isRotating) {
+                const angle = Math.atan2(coords.clientY - dragState.centerY, coords.clientX - dragState.centerX);
+                const rotation = (angle * 180 / Math.PI) + 90;
+                const newRotation = Math.round(rotation / 5) * 5; // Snap to 5-degree increments
+                
+                selectedElement.style.transform = `rotate(${newRotation}deg)`;
+                
+                const sizeText = selectedElement.classList.contains('text-overlay') ? 
+                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' : // Use overlay's style.fontSize
+                    `${Math.round(parseFloat(selectedElement.style.width))}×${Math.round(parseFloat(selectedElement.style.height))}`;
+                    
+                updateControlsText(selectedElement, sizeText, newRotation);
+            }
+        }
+
+        function handleGlobalMouseUp() {
+            dragState.isDragging = false;
+            dragState.isResizing = false;
+            dragState.isRotating = false;
+            dragState.handle = null;
+        }
+
+        function getCurrentRotation(element) {
+            const transform = element.style.transform;
+            const match = transform.match(/rotate\((-?\d+)deg\)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function updateControlsText(element, size, rotation) {
+            const controls = element.querySelector('.overlay-controls');
+            if (controls) {
+                controls.innerHTML = `Size: ${size} | Rotation: ${rotation}° | Press Delete to remove`;
+            }
+        }
+
+        function clearOverlays() {
+            textElements.forEach(overlay => overlay.remove());
+            imageOverlays.forEach(overlay => overlay.remove());
+            textElements = [];
+            imageOverlays = [];
+            selectedElement = null;
+            updateStatus('All overlays cleared');
+        }
+
+        function saveToUndoStack() {
+            if (canvas.width > 0 && canvas.height > 0) {
+                 if (undoStack.length > 10) undoStack.shift();
+                 // Create a deep copy of the image data to prevent modifications
+                 const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                 const dataCopy = ctx.createImageData(currentData.width, currentData.height);
+                 dataCopy.data.set(currentData.data);
+                 undoStack.push(dataCopy);
+            }
+        }
+
+        function undoLastAction() {
+            if (undoStack.length > 1) {
+                undoStack.pop();
+                ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
+                updateStatus('Action undone (Ctrl+Z)');
+            } else {
+                updateStatus('Nothing to undo');
+            }
+        }
+
+        function resetImage() {
+            if (originalImageData) {
+                ctx.putImageData(originalImageData, 0, 0);
+                clearOverlays();
+                undoStack = [];
+                saveToUndoStack(); // Add original image back to stack
+                // Regenerate pixelated version
+                generatePixelatedVersion();
+                updateStatus('Image reset to original');
+            }
+        }
+
+        function downloadImage() {
+            generateFinalImage('png');
+        }
+
+        function saveAsJPEG() {
+            generateFinalImage('jpeg');
+        }
+
+        function generateFinalImage(format) {
+            updateStatus('Generating final image...');
+            
+            // Create a temporary canvas to combine image and overlays
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            
+            // Draw white background for JPEG
+            if (format === 'jpeg') {
+                tempCtx.fillStyle = '#ffffff';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            }
+            
+            // Draw the main canvas
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            // Calculate scale factors based on actual canvas size vs. displayed size
+            const displayedCanvasWidth = canvas.offsetWidth;
+            const displayedCanvasHeight = canvas.offsetHeight;
+            const scaleX = canvas.width / displayedCanvasWidth;
+            const scaleY = canvas.height / displayedCanvasHeight;
+            
+            
+            const overlays = [...imageOverlays, ...textElements];
+            
+            overlays.forEach(overlay => {
+                try {
+                    if (!overlay.style) return;
+                    
+                    // 1. Get un-scaled CSS values (relative to the canvas-container's padded origin)
+                    const left = parseFloat(overlay.style.left) || 0;
+                    const top = parseFloat(overlay.style.top) || 0;
+                    const width = parseFloat(overlay.style.width) || overlay.offsetWidth;
+                    const height = parseFloat(overlay.style.height) || overlay.offsetHeight;
+                    const rotation = getCurrentRotation(overlay);
+                    
+                    // FIX 3: Subtract the container padding from CSS values 
+                    // to get the true canvas-relative position (0, 0 is canvas TL)
+                    const canvasRelativeLeft = left - CANVAS_CONTAINER_PADDING;
+                    const canvasRelativeTop = top - CANVAS_CONTAINER_PADDING;
+
+                    // 2. Scale the canvas-relative coordinates and dimensions to the high-res canvas size
+                    const scaledX = canvasRelativeLeft * scaleX; 
+                    const scaledY = canvasRelativeTop * scaleY;   
+                    const scaledWidth = width * scaleX;
+                    const scaledHeight = height * scaleY;
+                    
+                    tempCtx.save();
+                    
+                    // 3. Translate to the center of the scaled element for rotation
+                    tempCtx.translate(scaledX + scaledWidth / 2, scaledY + scaledHeight / 2);
+                    tempCtx.rotate(rotation * Math.PI / 180);
+                    
+                    if (overlay.classList.contains('image-overlay')) {
+                        // Image Overlay Drawing
+                        const img = overlay.querySelector('img');
+                        if (!img) return;
+                        tempCtx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+                        
+                    } else if (overlay.classList.contains('text-overlay')) {
+                        // Text Overlay Drawing
+                        const textContent = overlay.querySelector('.text-content');
+                        if (!textContent) return;
+                        
+                        // Background
+                        if (overlay.style.backgroundColor && overlay.style.backgroundColor !== 'transparent' && scaledWidth > 0 && scaledHeight > 0) {
+                            tempCtx.fillStyle = overlay.style.backgroundColor;
+                            tempCtx.fillRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+                        }
+                        
+                        // Text Styling
+                        const computedStyle = window.getComputedStyle(overlay);
+                        // Using overlay's computed style, but scale font size
+                        
+                        // Calculate font size (scaling the visual size)
+                        const baseFontSize = parseFloat(computedStyle.fontSize) || 24;
+                        const fontSize = baseFontSize * Math.min(scaleX, scaleY);
+                        
+                        const fontWeight = computedStyle.fontWeight || 'normal';
+                        const fontStyle = computedStyle.fontStyle || 'normal';
+                        const fontFamily = computedStyle.fontFamily || 'Arial';
+                        const color = computedStyle.color || '#000000';
+                        
+                        tempCtx.fillStyle = color;
+                        tempCtx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`;
+                        tempCtx.textAlign = 'center';
+                        tempCtx.textBaseline = 'middle';
+                        
+                        // Handle multi-line text
+                        const text = textContent.textContent || textContent.innerText || '';
+                        const lines = text.split('\n');
+                        const lineHeight = fontSize * 1.2;
+                        const startY = -(lines.length - 1) * lineHeight / 2;
+                        
+                        lines.forEach((line, index) => {
+                            if (line.trim()) {
+                                tempCtx.fillText(line, 0, startY + index * lineHeight);
+                            }
+                        });
+                    }
+                    
+                    tempCtx.restore();
+                } catch (e) {
+                    console.warn('Error rendering overlay:', e);
+                }
+            });
+            
+            // --- Download ---
+            try {
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const extension = format === 'jpeg' ? 'jpg' : 'png';
+                link.download = `edited-image-${timestamp}.${extension}`;
+                
+                const quality = format === 'jpeg' ? 0.92 : undefined;
+                link.href = tempCanvas.toDataURL(`image/${format}`, quality);
+                link.click();
+                
+                updateStatus(`Image downloaded as ${extension.toUpperCase()} (Ctrl+S)`);
+            } catch (e) {
+                console.error('Error downloading image:', e);
+                updateStatus('Error downloading image - please try again');
+            }
+        }
+
+        function updateBrushSize() {
+            const size = document.getElementById('brushSize').value;
+            document.getElementById('brushSizeDisplay').textContent = size;
+        }
+
+        function updateStrength() {
+            const strength = document.getElementById('effectStrength').value;
+            document.getElementById('strengthDisplay').textContent = strength;
+            
+            // Regenerate pixelated version if pixelate tool is active
+            if (currentTool === 'pixelate' && originalImageData) {
+                generatePixelatedVersion();
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+            
+            // Auto-clear status after 5 seconds for non-error messages
+            if (!message.toLowerCase().includes('error')) {
+                setTimeout(() => {
+                    if (document.getElementById('statusText').textContent === message) {
+                        document.getElementById('statusText').textContent = 'Ready to edit';
+                    }
+                }, 5000);
+            }
+        }
+
+        function updateImageInfo(width, height) {
+            const sizeInMB = ((width * height * 4) / (1024 * 1024)).toFixed(2);
+            document.getElementById('imageInfo').textContent = `${width} × ${height} pixels (${sizeInMB} MB)`;
+        }
+
+        // Initialize first tool
+        setTool('pixelate');
+        
+        // Add some helpful tips
+        setTimeout(() => {
+            if (!canvas.width) {
+                updateStatus('Tip: Try uploading an image to start editing, or use Ctrl+Z to undo actions');
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
