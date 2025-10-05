@@ -123,6 +123,8 @@
             border-radius: 10px;
             cursor: crosshair;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            /* FIX for Mobile Drawing on S24 Ultra and similar devices */
+            touch-action: none; 
         }
 
         button {
@@ -525,7 +527,7 @@
             document.getElementById('overlayInput').click();
         }
         
-        // Helper function to get coordinates regardless of mouse or touch event (MODIFIED)
+        // Helper function to get coordinates regardless of mouse or touch event
         function getCoords(e) {
             // Prefer touches[0] for touch events
             if (e.touches && e.touches.length > 0) {
@@ -563,7 +565,7 @@
             canvas.addEventListener('mouseleave', stopDrawing);
             canvas.addEventListener('click', handleCanvasClick);
             
-            // Canvas events - TOUCH (EXISTING, ensures passive: false for preventDefault)
+            // Canvas events - TOUCH (ensures passive: false for preventDefault)
             canvas.addEventListener('touchstart', startDrawing, {passive: false}); 
             canvas.addEventListener('touchmove', draw, {passive: false});     
             canvas.addEventListener('touchend', stopDrawing);
@@ -573,11 +575,10 @@
             document.addEventListener('mousemove', handleGlobalMouseMove);
             document.addEventListener('mouseup', handleGlobalMouseUp);
             
-            // Global touch events for dragging/resizing (EXISTING, ensures passive: false)
+            // Global touch events for dragging/resizing 
             document.addEventListener('touchstart', handleGlobalMouseDown, {passive: false});
             document.addEventListener('touchmove', handleGlobalMouseMove, {passive: false});
             document.addEventListener('touchend', handleGlobalMouseUp);
-            // Added touchcancel for robustness (NEW)
             document.addEventListener('touchcancel', handleGlobalMouseUp); 
 
 
@@ -874,7 +875,7 @@
             canvas.addEventListener('mouseleave', function() {
                 brushCursor.style.display = 'none';
             });
-            // Hiding brush cursor on touch start (NEW)
+            // Hiding brush cursor on touch start
             canvas.addEventListener('touchstart', function() {
                 if(brushCursor) brushCursor.style.display = 'none';
             });
@@ -897,7 +898,7 @@
         }
 
         function startDrawing(e) {
-            // Prevent scrolling on touch devices when starting to draw on canvas (EXISTING)
+            // Prevent scrolling on touch devices when starting to draw on canvas
             if (e.type === 'touchstart') e.preventDefault();
             
             if (currentTool === 'text' || !originalImageData) return;
@@ -909,10 +910,10 @@
         function draw(e) {
             if (!isDrawing || currentTool === 'text' || !originalImageData) return;
 
-            // Prevent scrolling on touch devices while drawing (EXISTING)
+            // Prevent scrolling on touch devices while drawing (redundant due to CSS touch-action:none but kept for safety)
             if (e.type === 'touchmove') e.preventDefault(); 
             
-            const coords = getCoords(e); // Use helper function (EXISTING)
+            const coords = getCoords(e); 
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -1087,7 +1088,7 @@
                 </div>
             `;
             
-            // FIX 1: Add padding offset to x/y so the overlay's CSS position aligns with the canvas (EXISTING)
+            // FIX 1: Add padding offset to x/y so the overlay's CSS position aligns with the canvas
             const containerRelativeLeft = x + CANVAS_CONTAINER_PADDING;
             const containerRelativeTop = y + CANVAS_CONTAINER_PADDING;
             
@@ -1142,7 +1143,7 @@
                 deleteElement(element, type);
             });
 
-            // Added long press detection for mobile deletion (NEW)
+            // Added long press detection for mobile deletion
             let pressTimer;
             element.addEventListener('touchstart', (e) => {
                 // Ignore if it's a resize/rotate handle press
@@ -1190,9 +1191,9 @@
         }
 
         function handleGlobalMouseDown(e) {
-            const coords = getCoords(e); // Use helper function (EXISTING)
+            const coords = getCoords(e); 
 
-            // Conditional e.preventDefault() for touch events (EXISTING)
+            // Conditional e.preventDefault() for touch events
             if (e.type === 'touchstart') {
                 const isTargetOverlay = e.target.closest('.text-overlay, .image-overlay');
                 // Prevent default (scrolling) only if the touch starts on an overlay or resize/rotate handle
@@ -1251,7 +1252,7 @@
         }
 
         function handleGlobalMouseMove(e) {
-            // Prevent default touch behavior (e.g., scrolling) while dragging/resizing (EXISTING)
+            // Prevent default touch behavior (e.g., scrolling) while dragging/resizing
             if (e.type === 'touchmove') {
                 if (dragState.isDragging || dragState.isResizing || dragState.isRotating) {
                     e.preventDefault(); 
@@ -1260,7 +1261,7 @@
             
             if (!selectedElement) return;
             
-            const coords = getCoords(e); // Use helper function (EXISTING)
+            const coords = getCoords(e); 
             
             if (dragState.isDragging) {
                 const newX = coords.clientX - dragState.startX;
@@ -1271,7 +1272,7 @@
                 const overlayWidth = selectedElement.offsetWidth;
                 const overlayHeight = selectedElement.offsetHeight;
 
-                // FIX 2: Correct Dragging Bounds (EXISTING)
+                // Correct Dragging Bounds 
                 const minLeft = CANVAS_CONTAINER_PADDING;
                 const minTop = CANVAS_CONTAINER_PADDING;
                 
@@ -1340,7 +1341,7 @@
                 selectedElement.style.transform = `rotate(${newRotation}deg)`;
                 
                 const sizeText = selectedElement.classList.contains('text-overlay') ? 
-                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' : // Use overlay's style.fontSize
+                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' : 
                     `${Math.round(parseFloat(selectedElement.style.width))}×${Math.round(parseFloat(selectedElement.style.height))}`;
                     
                 updateControlsText(selectedElement, sizeText, newRotation);
@@ -1363,7 +1364,7 @@
         function updateControlsText(element, size, rotation) {
             const controls = element.querySelector('.overlay-controls');
             if (controls) {
-                // Modified overlay-controls text for mobile to prompt long-press for delete (NEW)
+                // Modified overlay-controls text for mobile to prompt long-press for delete
                 const deletePrompt = 'Long-press to delete'; 
                 controls.innerHTML = `Size: ${size} | Rotation: ${rotation}° | ${deletePrompt}`;
             }
@@ -1457,7 +1458,7 @@
                     const height = parseFloat(overlay.style.height) || overlay.offsetHeight;
                     const rotation = getCurrentRotation(overlay);
                     
-                    // FIX 3: Subtract the container padding from CSS values (EXISTING)
+                    // FIX 3: Subtract the container padding from CSS values
                     const canvasRelativeLeft = left - CANVAS_CONTAINER_PADDING;
                     const canvasRelativeTop = top - CANVAS_CONTAINER_PADDING;
 
