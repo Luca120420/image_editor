@@ -1,4 +1,867 @@
-if (currentTool !== 'text') {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Image Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            min-width: 150px;
+        }
+
+        .tool-group h3 {
+            color: #333;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 4px;
+        }
+
+        .upload-area {
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px;
+            background: linear-gradient(45deg, #f0f8ff, #e6f3ff);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #45a049;
+            background: linear-gradient(45deg, #e6f3ff, #d0e7ff);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.drag-over {
+            border-color: #2196F3;
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            transform: scale(1.02);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-top: 15px;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px auto;
+            display: none;
+            max-width: 100%;
+            overflow: auto;
+            background: #f0f0f0;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            touch-action: none;
+        }
+
+        #canvas {
+            display: block;
+            max-width: 100%;
+            border-radius: 10px;
+            cursor: crosshair;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            touch-action: none;
+        }
+
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(45deg, #FF6B6B, #FF5252);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        input[type="range"] {
+            width: 120px;
+            margin: 5px 0;
+            appearance: none;
+            height: 6px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="color"], input[type="text"], input[type="number"], select {
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="color"]:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+        
+        .color-label {
+            font-size: 12px;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .brush-cursor {
+            border: 2px solid #FF6B6B;
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .text-overlay, .image-overlay {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            z-index: 100;
+            border: 2px dashed transparent;
+            transition: border-color 0.2s ease;
+            touch-action: none;
+        }
+
+        .text-overlay:hover, .text-overlay.selected,
+        .image-overlay:hover, .image-overlay.selected {
+            border-color: #4CAF50;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nw-resize;
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .text-overlay:hover .resize-handle, .text-overlay.selected .resize-handle,
+        .image-overlay:hover .resize-handle, .image-overlay.selected .resize-handle {
+            opacity: 1;
+        }
+
+        .text-overlay.selected .resize-handle,
+        .image-overlay.selected .resize-handle {
+            opacity: 1;
+        }
+
+        .resize-handle.se { bottom: -8px; right: -8px; cursor: se-resize; }
+        .resize-handle.sw { bottom: -8px; left: -8px; cursor: sw-resize; }
+        .resize-handle.ne { top: -8px; right: -8px; cursor: ne-resize; }
+        .resize-handle.nw { top: -8px; left: -8px; cursor: nw-resize; }
+
+        .rotate-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #FF6B6B;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: grab;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .text-overlay:hover .rotate-handle, .text-overlay.selected .rotate-handle,
+        .image-overlay:hover .rotate-handle, .image-overlay.selected .rotate-handle {
+            opacity: 1;
+        }
+
+        .text-overlay.selected .rotate-handle,
+        .image-overlay.selected .rotate-handle {
+            opacity: 1;
+        }
+
+        .rotate-handle:active {
+            cursor: grabbing;
+        }
+
+        .overlay-controls {
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 102;
+        }
+
+        .text-overlay.selected .overlay-controls,
+        .image-overlay.selected .overlay-controls {
+            display: block;
+        }
+
+        .image-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .download-section {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .status-bar {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-preview {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            margin-left: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+        }
+
+        .controls-row label {
+            min-width: 80px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .tool-group {
+                min-width: auto;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+            
+            body {
+                padding: 10px;
+            }
+
+            .resize-handle {
+                width: 20px;
+                height: 20px;
+            }
+
+            .rotate-handle {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Advanced Image Editor</h1>
+            <p>Upload, edit, and enhance your images with powerful effects</p>
+        </div>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <h3>Image</h3>
+                <button onclick="triggerFileUpload()">Upload Image</button>
+                <button onclick="resetImage()">Reset</button>
+                <button onclick="undoLastAction()">Undo</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Effects</h3>
+                <button id="pixelateBtn" onclick="setTool('pixelate')">Pixelate</button>
+                <button id="blurBtn" onclick="setTool('blur')">Blur</button>
+                <button id="brightenBtn" onclick="setTool('brighten')">Brighten</button>
+                <button id="darkenBtn" onclick="setTool('darken')">Darken</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Settings</h3>
+                <div class="controls-row">
+                    <label>Brush Size:</label>
+                    <input type="range" id="brushSize" min="5" max="100" value="20" oninput="updateBrushSize()">
+                    <span id="brushSizeDisplay">20</span>
+                </div>
+                
+                <div class="controls-row">
+                    <label>Strength:</label>
+                    <input type="range" id="effectStrength" min="1" max="100" value="50" oninput="updateStrength()">
+                    <span id="strengthDisplay">50</span>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>Overlay</h3>
+                <button onclick="triggerOverlayUpload()">Add Image</button>
+                <input type="file" id="overlayInput" accept="image/*" style="display: none;" onchange="handleOverlaySelect(event)">
+                <button onclick="clearOverlays()">Clear All</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>Text</h3>
+                <button id="textBtn" onclick="setTool('text')">Add Text</button>
+                <input type="text" id="textInput" placeholder="Enter text" style="width: 120px;">
+                
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                    <label for="textColor" class="color-label">Text Color</label>
+                    <input type="color" id="textColor" value="#000000" title="Text Color">
+                    <label for="textBgColor" class="color-label">BG Color</label>
+                    <input type="color" id="textBgColor" value="#ffffff" title="Background Color">
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>Text Style</h3>
+                <select id="fontFamily" style="width: 100%; margin-bottom: 5px;">
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Comic Sans MS">Comic Sans MS</option>
+                    <option value="Impact">Impact</option>
+                </select>
+                <div class="controls-row">
+                    <input type="number" id="fontSize" value="24" min="8" max="200" placeholder="Size" style="width: 60px;">
+                    <label><input type="checkbox" id="fontBold"> Bold</label>
+                    <label><input type="checkbox" id="fontItalic"> Italic</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-area" onclick="triggerFileUpload()">
+            <div style="font-size: 4em; color: #4CAF50;">📸</div>
+            <div class="upload-text">Click here or drag and drop an image to start editing</div>
+            <div style="margin-top: 10px; color: #999;">Supports JPG, PNG, GIF, and WebP formats</div>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div>Processing image...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="download-section" style="display: none;" id="downloadSection">
+            <button onclick="downloadImage()" style="background: linear-gradient(45deg, #2196F3, #1976D2); font-size: 1.1em; padding: 15px 30px;">
+                💾 Download Edited Image
+            </button>
+            <button onclick="saveAsJPEG()" style="background: linear-gradient(45deg, #FF9800, #F57C00); font-size: 1em; padding: 12px 25px; margin-left: 10px;">
+                📷 Save as JPEG
+            </button>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">Ready to edit</span>
+            <span id="imageInfo"></span>
+        </div>
+    </div>
+
+    <script>
+        let canvas, ctx, originalImageData, pixelatedImageData, currentTool = 'pixelate';
+        let isDrawing = false, brushCursor, undoStack = [];
+        let textElements = [], imageOverlays = [];
+        let selectedElement = null;
+        let dragState = { isDragging: false, isResizing: false, isRotating: false, startX: 0, startY: 0, handle: null };
+        const CANVAS_CONTAINER_PADDING = 20;
+        let lastTapTime = 0;
+        let tapTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            setupEventListeners();
+            createBrushCursor();
+            updateStatus('Ready to edit - Upload an image to begin');
+        });
+
+        function triggerFileUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        function triggerOverlayUpload() {
+            document.getElementById('overlayInput').click();
+        }
+        
+        function getCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { 
+                    clientX: e.touches[0].clientX, 
+                    clientY: e.touches[0].clientY 
+                };
+            }
+            return { 
+                clientX: e.clientX, 
+                clientY: e.clientY 
+            };
+        }
+
+        function setupEventListeners() {
+            const uploadArea = document.querySelector('.upload-area');
+
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('drop', handleDrop);
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            canvas.addEventListener('touchstart', handleCanvasTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', draw, {passive: false});
+            canvas.addEventListener('touchend', stopDrawing);
+
+            document.addEventListener('mousedown', handleGlobalMouseDown);
+            document.addEventListener('mousemove', handleGlobalMouseMove);
+            document.addEventListener('mouseup', handleGlobalMouseUp);
+            
+            document.addEventListener('touchstart', handleGlobalMouseDown, {passive: false});
+            document.addEventListener('touchmove', handleGlobalMouseMove, {passive: false});
+            document.addEventListener('touchend', handleGlobalMouseUp);
+
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleCanvasTouchStart(e) {
+            if (currentTool === 'text') {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    const coords = getCoords(e);
+                    const rect = canvas.getBoundingClientRect();
+                    const x = coords.clientX - rect.left;
+                    const y = coords.clientY - rect.top;
+                    addTextElement(x, y);
+                    if (tapTimeout) clearTimeout(tapTimeout);
+                } else {
+                    tapTimeout = setTimeout(() => {
+                        clearTimeout(tapTimeout);
+                    }, 300);
+                }
+                
+                lastTapTime = currentTime;
+            } else {
+                startDrawing(e);
+            }
+        }
+
+        function handleKeyDown(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'z':
+                        e.preventDefault();
+                        undoLastAction();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        downloadImage();
+                        break;
+                }
+            }
+            
+            if (e.key === 'Delete' && selectedElement) {
+                deleteSelectedElement();
+            }
+        }
+
+        function deleteSelectedElement() {
+            if (!selectedElement) return;
+            
+            selectedElement.remove();
+            if (selectedElement.classList.contains('text-overlay')) {
+                textElements = textElements.filter(el => el !== selectedElement);
+                updateStatus('Text element deleted');
+            } else {
+                imageOverlays = imageOverlays.filter(el => el !== selectedElement);
+                updateStatus('Image overlay deleted');
+            }
+            selectedElement = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                loadImage(files[0]);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.add('show');
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = '0%';
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(hideLoading, 500);
+                }
+                progressFill.style.width = progress + '%';
+            }, 100);
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.remove('show');
+        }
+
+        function loadImage(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file');
+                return;
+            }
+
+            showLoading();
+            updateStatus('Loading image...');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    setupCanvas(img);
+                    document.querySelector('.upload-area').style.display = 'none';
+                    document.querySelector('.canvas-container').style.display = 'block';
+                    document.getElementById('downloadSection').style.display = 'block';
+                    updateStatus('Image loaded successfully - Start editing!');
+                    updateImageInfo(img.width, img.height);
+                    hideLoading();
+                };
+                img.onerror = function() {
+                    hideLoading();
+                    updateStatus('Error loading image');
+                    alert('Error loading image. Please try a different file.');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                loadImage(file);
+            }
+        }
+
+        function handleOverlaySelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                addImageOverlay(file);
+            }
+            e.target.value = '';
+        }
+
+        function addImageOverlay(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file');
+                return;
+            }
+
+            updateStatus('Loading image overlay...');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    createImageOverlay(img, e.target.result);
+                    updateStatus('Image overlay added - drag to position, use handles to resize/rotate');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createImageOverlay(img, src) {
+            const overlay = document.createElement('div');
+            overlay.className = 'image-overlay';
+            
+            const maxSize = 200;
+            const scale = Math.min(maxSize / img.width, maxSize / img.height);
+            const width = img.width * scale;
+            const height = img.height * scale;
+            
+            const initialLeft = 100 + CANVAS_CONTAINER_PADDING;
+            const initialTop = 100 + CANVAS_CONTAINER_PADDING;
+
+            overlay.style.position = 'absolute';
+            overlay.style.left = initialLeft + 'px';
+            overlay.style.top = initialTop + 'px';
+            overlay.style.width = width + 'px';
+            overlay.style.height = height + 'px';
+            overlay.style.transform = 'rotate(0deg)';
+            overlay.innerHTML = `
+                <img src="${src}" draggable="false">
+                <div class="resize-handle nw"></div>
+                <div class="resize-handle ne"></div>
+                <div class="resize-handle sw"></div>
+                <div class="resize-handle se"></div>
+                <div class="rotate-handle"></div>
+                <div class="overlay-controls">
+                    Size: ${Math.round(width)}×${Math.round(height)} | Double-tap to delete
+                </div>
+            `;
+            
+            setupOverlayEvents(overlay, 'image');
+            document.querySelector('.canvas-container').appendChild(overlay);
+            imageOverlays.push(overlay);
+        }
+
+        function setupCanvas(img) {
+            const maxCanvasSize = 1920;
+            let canvasWidth = img.width;
+            let canvasHeight = img.height;
+            
+            if (img.width > maxCanvasSize || img.height > maxCanvasSize) {
+                const scale = Math.min(maxCanvasSize / img.width, maxCanvasSize / img.height);
+                canvasWidth = img.width * scale;
+                canvasHeight = img.height * scale;
+            }
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+            
+            const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            originalImageData = ctx.createImageData(tempImageData.width, tempImageData.height);
+            originalImageData.data.set(tempImageData.data);
+            
+            generatePixelatedVersion();
+            
+            saveToUndoStack();
+        }
+
+        function generatePixelatedVersion() {
+            if (!originalImageData) return;
+            
+            const strength = parseInt(document.getElementById('effectStrength').value);
+            const pixelSize = Math.max(2, Math.floor((101 - strength) / 5));
+            
+            pixelatedImageData = ctx.createImageData(canvas.width, canvas.height); 
+            const sourceData = originalImageData.data;
+            
+            pixelateImageWithAveraging(sourceData, pixelatedImageData, canvas.width, canvas.height, pixelSize);
+            
+            updateStatus(`Pixelated version generated (${pixelSize}px blocks) - use brush to reveal pixelated areas`);
+        }
+
+        function pixelateImageWithAveraging(sourceData, targetData, width, height, blockSize) {
+            const source = sourceData;
+            const target = targetData.data;
+            
+            for (let blockY = 0; blockY < height; blockY += blockSize) {
+                for (let blockX = 0; blockX < width; blockX += blockSize) {
+                    
+                    let totalR = 0, totalG = 0, totalB = 0, totalA = 0;
+                    let pixelCount = 0;
+                    
+                    const maxY = Math.min(blockY + blockSize, height);
+                    const maxX = Math.min(blockX + blockSize, width);
+                    
+                    for (let y = blockY; y < maxY; y++) {
+                        for (let x = blockX; x < maxX; x++) {
+                            const index = (y * width + x) * 4;
+                            totalR += source[index];
+                            totalG += source[index + 1];
+                            totalB += source[index + 2];
+                            totalA += source[index + 3];
+                            pixelCount++;
+                        }
+                    }
+                    
+                    const avgR = Math.round(totalR / pixelCount);
+                    const avgG = Math.round(totalG / pixelCount);
+                    const avgB = Math.round(totalB / pixelCount);
+                    const avgA = Math.round(totalA / pixelCount);
+                    
+                    for (let y = blockY; y < maxY; y++) {
+                        for (let x = blockX; x < maxX; x++) {
+                            const index = (y * width + x) * 4;
+                            target[index] = avgR;
+                            target[index + 1] = avgG;
+                            target[index + 2] = avgB;
+                            target[index + 3] = avgA;
+                        }
+                    }
+                }
+            }
+        }
+
+        function createBrushCursor() {
+            brushCursor = document.createElement('div');
+            brushCursor.className = 'brush-cursor';
+            document.body.appendChild(brushCursor);
+            
+            canvas.addEventListener('mousemove', function(e) {RiprovaClaude non ha ancora la capacità di eseguire il codice che genera.LContinuaModificajavascript            if (currentTool !== 'text') {
                     const size = parseInt(document.getElementById('brushSize').value);
                     brushCursor.style.width = size + 'px';
                     brushCursor.style.height = size + 'px';
