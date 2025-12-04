@@ -3,108 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browser Image Editor</title>
+    <title>Pro Web Image Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
         :root {
-            --bg-color: #1e1e1e;
-            --panel-color: #2d2d2d;
-            --text-color: #ffffff;
-            --accent-color: #3b82f6;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --accent: #6366f1; /* Indigo */
+            --border: #333;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+        }
+
+        /* --- LAYOUT --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            padding: 15px;
+            gap: 15px;
+            overflow-y: auto;
+            z-index: 10;
         }
 
-        /* Toolbar Styling */
-        .toolbar {
-            background-color: var(--panel-color);
-            padding: 10px 20px;
+        .right-sidebar {
+            width: 260px;
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border);
+            padding: 15px;
             display: flex;
-            gap: 10px;
-            align-items: center;
-            border-bottom: 1px solid #444;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            z-index: 10;
         }
 
-        button, .file-upload-label {
-            background-color: #444;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 14px;
-        }
-
-        button:hover, .file-upload-label:hover {
-            background-color: var(--accent-color);
-        }
-
-        /* Hide the actual file input */
-        #imgLoader {
-            display: none;
-        }
-
-        /* Main Workspace */
         .workspace {
             flex: 1;
+            background-color: #000;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: auto;
-            padding: 20px;
+            position: relative;
         }
 
-        .canvas-container {
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            background-image: linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
-                              linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), 
-                              linear-gradient(45deg, transparent 75%, #2a2a2a 75%), 
-                              linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        /* --- UI ELEMENTS --- */
+        h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
+        
+        button, .btn-upload {
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-align: center;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 5px;
         }
+
+        button:hover, .btn-upload:hover { background-color: var(--accent); border-color: var(--accent); }
+        button:active { transform: translateY(1px); }
+        
+        .btn-primary { background-color: var(--accent); border: none; }
+        .btn-danger { background-color: #ef4444; border: none; }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            margin: 10px 0;
+        }
+
+        select {
+            width: 100%;
+            background: #333;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        .control-group {
+            background: #252525;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        input[type="file"] { display: none; }
+        
+        /* Canvas shadow */
+        .canvas-container { box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <label for="imgLoader" class="file-upload-label">📁 Upload Image</label>
+    <div class="sidebar">
+        <h3>File</h3>
+        <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
         <input type="file" id="imgLoader" accept="image/*">
+        <button onclick="downloadImage()" class="btn-primary">💾 Export Image</button>
 
+        <h3>Add</h3>
         <button onclick="addText()">Aa Add Text</button>
-        <button onclick="deleteObject()">🗑️ Delete Selected</button>
-        
-        <button onclick="applyFilter('grayscale')">⚪ Grayscale</button>
-        <button onclick="applyFilter('sepia')">🟤 Sepia</button>
-        <button onclick="applyFilter('invert')">🔄 Invert</button>
-        
-        <button onclick="downloadImage()" style="background-color: #10b981;">💾 Save Image</button>
+        <button onclick="addRect()">⬜ Add Shape</button>
+
+        <h3>Edit</h3>
+        <button onclick="clipSelection()">✂️ Cut/Clip to Box</button>
+        <button onclick="sendBack()">⬇️ Send Backwards</button>
+        <button onclick="bringFront()">⬆️ Bring Forward</button>
+        <button onclick="deleteObject()" class="btn-danger">🗑️ Delete Selected</button>
     </div>
 
-    <div class="workspace">
+    <div class="workspace" id="workspace-container">
         <canvas id="c"></canvas>
     </div>
 
+    <div class="right-sidebar">
+        
+        <div class="control-group">
+            <h3>Blending Mode</h3>
+            <select id="blend-mode" onchange="changeBlendMode()">
+                <option value="source-over">Normal</option>
+                <option value="multiply">Multiply (Darken)</option>
+                <option value="screen">Screen (Lighten)</option>
+                <option value="overlay">Overlay</option>
+                <option value="darken">Darken</option>
+                <option value="lighten">Lighten</option>
+                <option value="difference">Difference</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <h3>Blur Effect</h3>
+            <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
+        </div>
+
+        <div class="control-group">
+            <h3>Pixelate Effect</h3>
+            <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+        </div>
+
+        <div class="control-group">
+            <h3>Opacity</h3>
+            <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
+        </div>
+
+        <div class="control-group">
+            <p style="font-size:12px; color:#666;">
+                <i>Tip: To cut a photo, add a Shape, place it over the photo, select both, and click "Cut/Clip".</i>
+            </p>
+        </div>
+
+    </div>
+
     <script>
-        // 1. Initialize Canvas
+        // --- 1. SETUP ---
+        // Create canvas but don't set fixed size yet
         const canvas = new fabric.Canvas('c', {
-            width: 800,
-            height: 600,
-            backgroundColor: null // Transparent initially
+            backgroundColor: '#252525',
+            preserveObjectStacking: true // Allows selecting objects behind others easily
         });
 
-        // 2. Handle Image Upload
+        // Set initial canvas size to a nice workspace size
+        resizeCanvasToDisplay(800, 600);
+
+        function resizeCanvasToDisplay(width, height) {
+            canvas.setWidth(width);
+            canvas.setHeight(height);
+        }
+
+        // --- 2. UPLOAD & SCALING LOGIC ---
         document.getElementById('imgLoader').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -113,95 +200,245 @@
                 imgObj.onload = function() {
                     const imgInstance = new fabric.Image(imgObj);
                     
-                    // If it's the first image, resize canvas to match image
-                    if (canvas.getObjects().length === 0) {
-                        canvas.setWidth(imgInstance.width);
-                        canvas.setHeight(imgInstance.height);
+                    // Logic: Is this the first image (Background) or an added layer?
+                    const isFirstImage = canvas.getObjects().length === 0;
+
+                    if (isFirstImage) {
+                        // Logic to handle High Res images:
+                        // If image is huge, we don't want the canvas to be 4000px wide on screen.
+                        // We scale the canvas to fit the window, but we can keep high res internally if needed.
+                        // For this web editor, we will resize canvas to fit the image, 
+                        // BUT if the image is larger than the screen, we scale everything down to fit.
+                        
+                        const maxW = document.getElementById('workspace-container').clientWidth - 40;
+                        const maxH = document.getElementById('workspace-container').clientHeight - 40;
+                        
+                        let scale = 1;
+                        if (imgInstance.width > maxW || imgInstance.height > maxH) {
+                            scale = Math.min(maxW / imgInstance.width, maxH / imgInstance.height);
+                        }
+
+                        // Resize canvas to the scaled image size
+                        canvas.setWidth(imgInstance.width * scale);
+                        canvas.setHeight(imgInstance.height * scale);
+                        
+                        // Scale the image to fit perfectly
+                        imgInstance.scale(scale);
+                    } else {
+                        // If adding a second image, scale it down to be manageable (e.g., 50% of canvas)
+                        if (imgInstance.width > canvas.width) {
+                            imgInstance.scaleToWidth(canvas.width * 0.5);
+                        }
                     }
-                    
+
                     canvas.add(imgInstance);
-                    canvas.centerObject(imgInstance);
+                    canvas.centerObject(imgInstance); // ALWAYS CENTER
                     canvas.setActiveObject(imgInstance);
+                    canvas.renderAll();
+                    
+                    // Reset inputs
+                    resetControls();
                 }
             }
             reader.readAsDataURL(e.target.files[0]);
+            // Clear input so same file can be selected again
+            e.target.value = ''; 
         });
 
-        // 3. Add Text Function
+        // --- 3. TOOLS ---
+
         function addText() {
-            const text = new fabric.IText('Type Here', {
-                left: 50,
-                top: 50,
-                fontFamily: 'arial',
+            const text = new fabric.IText('Double click to edit', {
+                left: 50, top: 50,
+                fontFamily: 'sans-serif',
                 fill: '#fff',
-                stroke: '#000',
-                strokeWidth: 1,
                 fontSize: 40
             });
             canvas.add(text);
+            canvas.centerObject(text);
             canvas.setActiveObject(text);
         }
 
-        // 4. Delete Selected Object
+        function addRect() {
+            const rect = new fabric.Rect({
+                width: 200, height: 200,
+                fill: 'rgba(255,255,255,0.5)',
+                stroke: 'white',
+                strokeWidth: 2
+            });
+            canvas.add(rect);
+            canvas.centerObject(rect);
+            canvas.setActiveObject(rect);
+        }
+
         function deleteObject() {
-            const activeObject = canvas.getActiveObject();
-            if (activeObject) {
-                canvas.remove(activeObject);
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                canvas.discardActiveObject();
+                activeObjects.forEach((obj) => {
+                    canvas.remove(obj);
+                });
             }
         }
 
-        // 5. Apply Filters
-        function applyFilter(type) {
+        function sendBack() {
             const obj = canvas.getActiveObject();
-            if (!obj || obj.type !== 'image') {
-                alert('Please select an image first.');
+            if(obj) canvas.sendBackwards(obj);
+        }
+
+        function bringFront() {
+            const obj = canvas.getActiveObject();
+            if(obj) canvas.bringForward(obj);
+        }
+
+        // --- 4. EFFECTS & BLENDING ---
+
+        // Helper to get selected object safely
+        function getActive() { return canvas.getActiveObject(); }
+
+        function changeBlendMode() {
+            const obj = getActive();
+            const mode = document.getElementById('blend-mode').value;
+            if (obj && obj.type === 'image') {
+                obj.globalCompositeOperation = mode;
+                canvas.renderAll();
+            }
+        }
+
+        function changeOpacity() {
+            const obj = getActive();
+            const val = document.getElementById('opacity-slider').value;
+            if (obj) {
+                obj.set('opacity', parseFloat(val));
+                canvas.renderAll();
+            }
+        }
+
+        function applyBlur() {
+            const obj = getActive();
+            if (!obj || obj.type !== 'image') return;
+
+            const val = parseFloat(document.getElementById('blur-slider').value);
+            
+            // Remove existing blur filter
+            obj.filters = obj.filters.filter(f => f.type !== 'Blur');
+
+            if (val > 0) {
+                obj.filters.push(new fabric.Image.filters.Blur({ blur: val }));
+            }
+            obj.applyFilters();
+            canvas.renderAll();
+        }
+
+        function applyPixelate() {
+            const obj = getActive();
+            if (!obj || obj.type !== 'image') return;
+
+            const val = parseInt(document.getElementById('pixel-slider').value);
+            
+            // Remove existing pixelate
+            obj.filters = obj.filters.filter(f => f.type !== 'Pixelate');
+
+            if (val > 1) {
+                obj.filters.push(new fabric.Image.filters.Pixelate({ blocksize: val }));
+            }
+            obj.applyFilters();
+            canvas.renderAll();
+        }
+
+        // --- 5. CLIP / CUT LOGIC ---
+        // This is a simple implementation: 
+        // 1. Select the image you want to cut.
+        // 2. Select the shape you want to use as the cutter (Shift+Click).
+        // 3. Click Cut.
+        function clipSelection() {
+            const activeObj = canvas.getActiveObject();
+            if (!activeObj || activeObj.type !== 'activeSelection') {
+                alert("Please select 2 objects: The Image and the Shape to cut it with (Shift+Click).");
                 return;
             }
 
-            let filter;
-            switch(type) {
-                case 'grayscale':
-                    filter = new fabric.Image.filters.Grayscale();
-                    break;
-                case 'sepia':
-                    filter = new fabric.Image.filters.Sepia();
-                    break;
-                case 'invert':
-                    filter = new fabric.Image.filters.Invert();
-                    break;
+            const objects = activeObj.getObjects();
+            if (objects.length !== 2) {
+                alert("Select exactly 2 objects.");
+                return;
             }
 
-            // Check if filter is already applied to toggle it (optional complexity)
-            // For now, we just add it.
-            obj.filters.push(filter);
-            obj.applyFilters();
-            canvas.requestRenderAll();
+            // Assume the top object is the "Cutter" and bottom is "Image"
+            // Fabric sorts selection by stacking order usually.
+            const objectToClip = objects[0]; // The image (usually behind)
+            const clipPathObj = objects[1];  // The shape (usually in front)
+
+            // Calculate relative position for the clip path
+            // This is complex math in Fabric, but we can simplify by cloning
+            
+            // We need to bake the clipPath into the image
+            // Simplest way: Set the clipPath property
+            
+            // Note: This simple method assumes simple positioning. 
+            // For a robust 'Cut', we turn the top object into a clipPath of the bottom one.
+            
+            clipPathObj.absolutePositioned = true;
+            objectToClip.clipPath = clipPathObj;
+            
+            // Remove the 'cutter' shape from canvas as it is now part of the image
+            canvas.remove(clipPathObj);
+            
+            // Ungroup to apply changes
+            canvas.discardActiveObject();
+            canvas.renderAll();
         }
 
-        // 6. Download Image
+        // --- 6. EXPORT ---
         function downloadImage() {
+            // Deselect everything so selection boxes don't show up in save
+            canvas.discardActiveObject();
+            canvas.renderAll();
+
             const dataURL = canvas.toDataURL({
                 format: 'png',
-                quality: 1
+                quality: 1,
+                multiplier: 2 // Export at 2x resolution for better quality
             });
-            
+
             const link = document.createElement('a');
-            link.download = 'edited-image.png';
+            link.download = 'pro-edit-' + Date.now() + '.png';
             link.href = dataURL;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // Keyboard support for deletion
-        window.addEventListener('keydown', function(e) {
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                // Don't delete if we are editing text
-                if (canvas.getActiveObject() && !canvas.getActiveObject().isEditing) {
-                    deleteObject();
-                }
+        // --- EVENT LISTENERS FOR UI UPDATES ---
+        canvas.on('selection:created', updateControls);
+        canvas.on('selection:updated', updateControls);
+        canvas.on('selection:cleared', resetControls);
+
+        function updateControls() {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+            
+            // Update sliders based on current object state
+            document.getElementById('opacity-slider').value = obj.opacity;
+            
+            if (obj.type === 'image') {
+                document.getElementById('blend-mode').value = obj.globalCompositeOperation || 'source-over';
+                // Reset filter sliders visually (reading filters back is complex, simpler to reset UI)
             }
+        }
+
+        function resetControls() {
+            document.getElementById('opacity-slider').value = 1;
+            document.getElementById('blur-slider').value = 0;
+            document.getElementById('pixel-slider').value = 1;
+            document.getElementById('blend-mode').value = 'source-over';
+        }
+        
+        // Handle Delete key
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'Delete') deleteObject();
         });
+
     </script>
 </body>
 </html>
