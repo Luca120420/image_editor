@@ -115,6 +115,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             padding: 20px;
+            touch-action: none;
         }
 
         #canvas {
@@ -123,6 +124,7 @@
             border-radius: 10px;
             cursor: crosshair;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            touch-action: none;
         }
 
         button {
@@ -186,7 +188,6 @@
             box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
         }
         
-        /* New style for color labels */
         .color-label {
             font-size: 12px;
             color: #333;
@@ -210,6 +211,7 @@
             z-index: 100;
             border: 2px dashed transparent;
             transition: border-color 0.2s ease;
+            touch-action: none;
         }
 
         .text-overlay:hover, .text-overlay.selected,
@@ -219,8 +221,8 @@
 
         .resize-handle {
             position: absolute;
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             background: #4CAF50;
             border: 2px solid white;
             border-radius: 50%;
@@ -235,20 +237,25 @@
             opacity: 1;
         }
 
-        .resize-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
-        .resize-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
-        .resize-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
-        .resize-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .text-overlay.selected .resize-handle,
+        .image-overlay.selected .resize-handle {
+            opacity: 1;
+        }
+
+        .resize-handle.se { bottom: -8px; right: -8px; cursor: se-resize; }
+        .resize-handle.sw { bottom: -8px; left: -8px; cursor: sw-resize; }
+        .resize-handle.ne { top: -8px; right: -8px; cursor: ne-resize; }
+        .resize-handle.nw { top: -8px; left: -8px; cursor: nw-resize; }
 
         .rotate-handle {
             position: absolute;
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             background: #FF6B6B;
             border: 2px solid white;
             border-radius: 50%;
             cursor: grab;
-            top: -25px;
+            top: -30px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 101;
@@ -258,6 +265,11 @@
 
         .text-overlay:hover .rotate-handle, .text-overlay.selected .rotate-handle,
         .image-overlay:hover .rotate-handle, .image-overlay.selected .rotate-handle {
+            opacity: 1;
+        }
+
+        .text-overlay.selected .rotate-handle,
+        .image-overlay.selected .rotate-handle {
             opacity: 1;
         }
 
@@ -353,6 +365,16 @@
             body {
                 padding: 10px;
             }
+
+            .resize-handle {
+                width: 20px;
+                height: 20px;
+            }
+
+            .rotate-handle {
+                width: 20px;
+                height: 20px;
+            }
         }
 
         .loading {
@@ -439,7 +461,7 @@
                     <label for="textBgColor" class="color-label">BG Color</label>
                     <input type="color" id="textBgColor" value="#ffffff" title="Background Color">
                 </div>
-                </div>
+            </div>
 
             <div class="tool-group">
                 <h3>Text Style</h3>
@@ -500,9 +522,10 @@
         let textElements = [], imageOverlays = [];
         let selectedElement = null;
         let dragState = { isDragging: false, isResizing: false, isRotating: false, startX: 0, startY: 0, handle: null };
-        const CANVAS_CONTAINER_PADDING = 20; // Matches CSS .canvas-container padding
+        const CANVAS_CONTAINER_PADDING = 20;
+        let lastTapTime = 0;
+        let tapTimeout = null;
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             canvas = document.getElementById('canvas');
             ctx = canvas.getContext('2d');
@@ -519,7 +542,6 @@
             document.getElementById('overlayInput').click();
         }
         
-        // Helper function to get coordinates regardless of mouse or touch event (NEW)
         function getCoords(e) {
             if (e.touches && e.touches.length > 0) {
                 return { 
@@ -536,35 +558,53 @@
         function setupEventListeners() {
             const uploadArea = document.querySelector('.upload-area');
 
-            // Drag and drop
             uploadArea.addEventListener('dragover', handleDragOver);
             uploadArea.addEventListener('drop', handleDrop);
             uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
 
-            // Canvas events - MOUSE
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseleave', stopDrawing);
-            canvas.addEventListener('click', handleCanvasClick);
             
-            // Canvas events - TOUCH (NEW)
-            canvas.addEventListener('touchstart', startDrawing, {passive: false}); // passive: false to allow preventDefault
-            canvas.addEventListener('touchmove', draw, {passive: false});     // passive: false to allow preventDefault
+            canvas.addEventListener('touchstart', handleCanvasTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', draw, {passive: false});
             canvas.addEventListener('touchend', stopDrawing);
 
-            // Global mouse events for dragging/resizing
             document.addEventListener('mousedown', handleGlobalMouseDown);
             document.addEventListener('mousemove', handleGlobalMouseMove);
             document.addEventListener('mouseup', handleGlobalMouseUp);
             
-            // Global touch events for dragging/resizing (NEW)
             document.addEventListener('touchstart', handleGlobalMouseDown, {passive: false});
             document.addEventListener('touchmove', handleGlobalMouseMove, {passive: false});
             document.addEventListener('touchend', handleGlobalMouseUp);
 
-            // Keyboard shortcuts
             document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleCanvasTouchStart(e) {
+            if (currentTool === 'text') {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    const coords = getCoords(e);
+                    const rect = canvas.getBoundingClientRect();
+                    const x = coords.clientX - rect.left;
+                    const y = coords.clientY - rect.top;
+                    addTextElement(x, y);
+                    if (tapTimeout) clearTimeout(tapTimeout);
+                } else {
+                    tapTimeout = setTimeout(() => {
+                        clearTimeout(tapTimeout);
+                    }, 300);
+                }
+                
+                lastTapTime = currentTime;
+            } else {
+                startDrawing(e);
+            }
         }
 
         function handleKeyDown(e) {
@@ -581,7 +621,6 @@
                 }
             }
             
-            // Delete selected element
             if (e.key === 'Delete' && selectedElement) {
                 deleteSelectedElement();
             }
@@ -620,7 +659,6 @@
             const progressFill = document.getElementById('progressFill');
             progressFill.style.width = '0%';
             
-            // Simulate loading progress
             let progress = 0;
             const interval = setInterval(() => {
                 progress += Math.random() * 30;
@@ -707,13 +745,11 @@
             const overlay = document.createElement('div');
             overlay.className = 'image-overlay';
             
-            // Scale image to reasonable size
             const maxSize = 200;
             const scale = Math.min(maxSize / img.width, maxSize / img.height);
             const width = img.width * scale;
             const height = img.height * scale;
             
-            // Position near the top-left of the canvas, but OFFSET by padding to align correctly
             const initialLeft = 100 + CANVAS_CONTAINER_PADDING;
             const initialTop = 100 + CANVAS_CONTAINER_PADDING;
 
@@ -731,7 +767,7 @@
                 <div class="resize-handle se"></div>
                 <div class="rotate-handle"></div>
                 <div class="overlay-controls">
-                    Size: ${Math.round(width)}×${Math.round(height)} | Double-click to delete
+                    Size: ${Math.round(width)}×${Math.round(height)} | Double-tap to delete
                 </div>
             `;
             
@@ -741,7 +777,6 @@
         }
 
         function setupCanvas(img) {
-            // Limit canvas size for performance
             const maxCanvasSize = 1920;
             let canvasWidth = img.width;
             let canvasHeight = img.height;
@@ -756,12 +791,10 @@
             canvas.height = canvasHeight;
             ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
             
-            // Ensure originalImageData is a deep copy
             const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             originalImageData = ctx.createImageData(tempImageData.width, tempImageData.height);
             originalImageData.data.set(tempImageData.data);
             
-            // Generate pixelated version
             generatePixelatedVersion();
             
             saveToUndoStack();
@@ -770,15 +803,12 @@
         function generatePixelatedVersion() {
             if (!originalImageData) return;
             
-            // Get pixel size based on strength setting (inverted - higher strength = smaller pixels)
             const strength = parseInt(document.getElementById('effectStrength').value);
             const pixelSize = Math.max(2, Math.floor((101 - strength) / 5));
             
-            // Create a new ImageData object for the pixelated version
             pixelatedImageData = ctx.createImageData(canvas.width, canvas.height); 
-            const sourceData = originalImageData.data; // Use the original image data
+            const sourceData = originalImageData.data;
             
-            // Apply pixelation with averaging directly to pixelatedData
             pixelateImageWithAveraging(sourceData, pixelatedImageData, canvas.width, canvas.height, pixelSize);
             
             updateStatus(`Pixelated version generated (${pixelSize}px blocks) - use brush to reveal pixelated areas`);
@@ -788,18 +818,15 @@
             const source = sourceData;
             const target = targetData.data;
             
-            // Process each block
             for (let blockY = 0; blockY < height; blockY += blockSize) {
                 for (let blockX = 0; blockX < width; blockX += blockSize) {
                     
-                    // Calculate average color for this block
                     let totalR = 0, totalG = 0, totalB = 0, totalA = 0;
                     let pixelCount = 0;
                     
                     const maxY = Math.min(blockY + blockSize, height);
                     const maxX = Math.min(blockX + blockSize, width);
                     
-                    // Sum all pixels in the block
                     for (let y = blockY; y < maxY; y++) {
                         for (let x = blockX; x < maxX; x++) {
                             const index = (y * width + x) * 4;
@@ -811,13 +838,11 @@
                         }
                     }
                     
-                    // Calculate average
                     const avgR = Math.round(totalR / pixelCount);
                     const avgG = Math.round(totalG / pixelCount);
                     const avgB = Math.round(totalB / pixelCount);
                     const avgA = Math.round(totalA / pixelCount);
                     
-                    // Apply average color to entire block
                     for (let y = blockY; y < maxY; y++) {
                         for (let x = blockX; x < maxX; x++) {
                             const index = (y * width + x) * 4;
@@ -836,14 +861,11 @@
             brushCursor.className = 'brush-cursor';
             document.body.appendChild(brushCursor);
             
-            canvas.addEventListener('mousemove', function(e) {
-                // Only show brush if not in text mode and cursor is over canvas
-                if (currentTool !== 'text') {
+            canvas.addEventListener('mousemove', function(e) {RiprovaClaude non ha ancora la capacità di eseguire il codice che genera.LContinuaModificajavascript            if (currentTool !== 'text') {
                     const size = parseInt(document.getElementById('brushSize').value);
                     brushCursor.style.width = size + 'px';
                     brushCursor.style.height = size + 'px';
                     
-                    // Position relative to the window page coordinates
                     brushCursor.style.left = (e.pageX - size/2) + 'px';
                     brushCursor.style.top = (e.pageY - size/2) + 'px';
                     brushCursor.style.display = 'block';
@@ -855,7 +877,6 @@
             canvas.addEventListener('mouseleave', function() {
                 brushCursor.style.display = 'none';
             });
-            // Note: Brush cursor is intentionally desktop-only, as a touch indicator is difficult and often unnecessary.
         }
 
         function setTool(tool) {
@@ -866,7 +887,6 @@
             
             canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
             
-            // Regenerate pixelated version if strength changed and pixelate tool is active
             if (tool === 'pixelate' && originalImageData) {
                 generatePixelatedVersion();
             }
@@ -875,7 +895,6 @@
         }
 
         function startDrawing(e) {
-            // Prevent scrolling on touch devices when starting to draw on canvas (NEW)
             if (e.type === 'touchstart') e.preventDefault();
             
             if (currentTool === 'text' || !originalImageData) return;
@@ -887,10 +906,9 @@
         function draw(e) {
             if (!isDrawing || currentTool === 'text' || !originalImageData) return;
 
-            // Prevent scrolling on touch devices while drawing (NEW)
             if (e.type === 'touchmove') e.preventDefault(); 
             
-            const coords = getCoords(e); // Use helper function (NEW)
+            const coords = getCoords(e);
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -904,19 +922,7 @@
 
         function stopDrawing() {
             isDrawing = false;
-            if (brushCursor) brushCursor.style.display = 'none'; // Ensure cursor hides on stop for both mouse/touch
-        }
-
-        function handleCanvasClick(e) {
-            // Note: This function handles both mouse 'click' and simulated touch 'tap' for text placement
-            if (currentTool !== 'text') return;
-
-            const rect = canvas.getBoundingClientRect();
-            // Use clientX/Y directly for mouse click; getCoords is for mousedown/move/up/touch
-            const x = e.clientX - rect.left; // x relative to canvas TL (0, 0)
-            const y = e.clientY - rect.top;  // y relative to canvas TL (0, 0)
-            
-            addTextElement(x, y);
+            if (brushCursor) brushCursor.style.display = 'none';
         }
 
         function applyEffect(x, y, size, strength) {
@@ -927,9 +933,7 @@
             const height = Math.min(size, canvas.height - startY);
             
             if (currentTool === 'pixelate') {
-                // Apply pixelated data using circular brush
                 if (pixelatedImageData) {
-                    // Ensure startX, startY, width, height are integers
                     const startXInt = Math.floor(startX);
                     const startYInt = Math.floor(startY);
                     const widthInt = Math.ceil(width);
@@ -938,7 +942,6 @@
                     applyPixelatedBrush(startXInt, startYInt, widthInt, heightInt, x, y, halfSize);
                 }
             } else {
-                // Apply other effects as before
                 const imageData = ctx.getImageData(startX, startY, width, height);
                 
                 switch(currentTool) {
@@ -958,18 +961,15 @@
         }
 
         function applyPixelatedBrush(startX, startY, width, height, centerX, centerY, radius) {
-            // Use getImageData/putImageData over the affected area
             const currentImageData = ctx.getImageData(startX, startY, width, height);
             const currentData = currentImageData.data;
             const pixelatedData = pixelatedImageData.data;
             
-            // Apply pixelated effect with circular brush
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const actualX = startX + x;
                     const actualY = startY + y;
                     
-                    // Check if pixel is within brush radius
                     const dx = actualX - centerX;
                     const dy = actualY - centerY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -978,9 +978,7 @@
                         const sourceIndex = (actualY * canvas.width + actualX) * 4;
                         const targetIndex = (y * width + x) * 4;
                         
-                        // Check boundary for pixelatedData access
                         if (sourceIndex + 3 < pixelatedData.length) {
-                            // Copy pixelated pixel
                             currentData[targetIndex] = pixelatedData[sourceIndex];
                             currentData[targetIndex + 1] = pixelatedData[sourceIndex + 1];
                             currentData[targetIndex + 2] = pixelatedData[sourceIndex + 2];
@@ -1062,7 +1060,6 @@
                 </div>
             `;
             
-            // FIX 1: Add padding offset to x/y so the overlay's CSS position aligns with the canvas
             const containerRelativeLeft = x + CANVAS_CONTAINER_PADDING;
             const containerRelativeTop = y + CANVAS_CONTAINER_PADDING;
             
@@ -1082,7 +1079,6 @@
             textElement.style.minHeight = '30px';
             textElement.style.lineHeight = '1.2';
             
-            // Make text editable
             const textContent = textElement.querySelector('.text-content');
             textContent.addEventListener('blur', function() {
                 updateStatus('Text updated');
@@ -1091,16 +1087,14 @@
             setupOverlayEvents(textElement, 'text');
             document.querySelector('.canvas-container').appendChild(textElement);
             textElements.push(textElement);
-            updateStatus('Text added - click to edit, drag to move, use handles to resize/rotate');
+            updateStatus('Text added - tap to edit, drag to move, use handles to resize/rotate');
             
-            // Auto-select the new text element
             setTimeout(() => {
                 selectElement(textElement);
             }, 100);
         }
 
         function selectElement(element) {
-            // Clear previous selection
             document.querySelectorAll('.text-overlay, .image-overlay').forEach(el => {
                 el.classList.remove('selected');
             });
@@ -1110,14 +1104,27 @@
         }
 
         function setupOverlayEvents(element, type) {
-            // Double click to delete
+            let lastTouchTime = 0;
+            
+            element.addEventListener('touchstart', function(e) {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTouchTime;
+                
+                if (tapLength < 300 && tapLength > 0) {
+                    if (!e.target.classList.contains('text-content')) {
+                        e.preventDefault();
+                        deleteElement(element, type);
+                    }
+                }
+                lastTouchTime = currentTime;
+            });
+            
             element.addEventListener('dblclick', function(e) {
-                if (e.target.classList.contains('text-content')) return; // Don't delete when editing text
+                if (e.target.classList.contains('text-content')) return;
                 e.stopPropagation();
                 deleteElement(element, type);
             });
             
-            // Single click to select
             element.addEventListener('click', function(e) {
                 e.stopPropagation();
                 selectElement(element);
@@ -1136,30 +1143,24 @@
         }
 
         function handleGlobalMouseDown(e) {
-            const coords = getCoords(e); // Use helper function (NEW)
+            const coords = getCoords(e);
 
-            // Conditional e.preventDefault() for touch events (NEW)
             if (e.type === 'touchstart') {
                 const isTargetOverlay = e.target.closest('.text-overlay, .image-overlay');
-                // Prevent default (scrolling) only if the touch starts on an overlay or resize handle
                 if (isTargetOverlay && !e.target.closest('.text-content')) {
                     e.preventDefault(); 
                 } else if (e.target.closest('.text-content')) {
-                    // Allow default for text content to enable editing on mobile
                     return;
                 }
             }
             
-            // Check if click is inside an existing text-content area
             if (e.target.closest('.text-content')) {
-                // If it's the selected element's text content, don't start drag/resize
                 if (selectedElement && selectedElement.contains(e.target)) return;
             }
 
             const overlay = e.target.closest('.text-overlay, .image-overlay');
             
             if (!overlay) {
-                // Clicked/Tapped outside - clear selection
                 document.querySelectorAll('.text-overlay, .image-overlay').forEach(el => {
                     el.classList.remove('selected');
                 });
@@ -1171,12 +1172,11 @@
             
             if (e.target.classList.contains('resize-handle')) {
                 dragState.isResizing = true;
-                dragState.handle = e.target.classList[1]; // nw, ne, sw, se
+                dragState.handle = e.target.classList[1];
                 dragState.startX = coords.clientX;
                 dragState.startY = coords.clientY;
                 dragState.startWidth = parseFloat(overlay.style.width) || overlay.offsetWidth;
                 dragState.startHeight = parseFloat(overlay.style.height) || overlay.offsetHeight;
-                // Removed redundant e.preventDefault() for mouse
             } else if (e.target.classList.contains('rotate-handle')) {
                 dragState.isRotating = true;
                 dragState.startX = coords.clientX;
@@ -1185,18 +1185,14 @@
                 dragState.centerX = rect.left + rect.width / 2;
                 dragState.centerY = rect.top + rect.height / 2;
                 dragState.startRotation = getCurrentRotation(overlay);
-                // Removed redundant e.preventDefault() for mouse
             } else if (overlay.contains(e.target) && !e.target.classList.contains('text-content')) {
                 dragState.isDragging = true;
-                // Use parseFloat and fallback to 0 for reading style properties (left/top)
                 dragState.startX = coords.clientX - (parseFloat(overlay.style.left) || 0);
                 dragState.startY = coords.clientY - (parseFloat(overlay.style.top) || 0);
-                // Removed redundant e.preventDefault() for mouse
             }
         }
 
         function handleGlobalMouseMove(e) {
-            // Prevent default touch behavior (e.g., scrolling) while dragging/resizing (NEW)
             if (e.type === 'touchmove') {
                 if (dragState.isDragging || dragState.isResizing || dragState.isRotating) {
                     e.preventDefault(); 
@@ -1205,28 +1201,22 @@
             
             if (!selectedElement) return;
             
-            const coords = getCoords(e); // Use helper function (NEW)
+            const coords = getCoords(e);
             
             if (dragState.isDragging) {
                 const newX = coords.clientX - dragState.startX;
                 const newY = coords.clientY - dragState.startY;
                 
-                // Get canvas dimensions
                 const canvasRect = canvas.getBoundingClientRect();
                 const overlayWidth = selectedElement.offsetWidth;
                 const overlayHeight = selectedElement.offsetHeight;
 
-                // FIX 2: Correct Dragging Bounds
-                // The minimum position is the container padding value.
                 const minLeft = CANVAS_CONTAINER_PADDING;
                 const minTop = CANVAS_CONTAINER_PADDING;
                 
-                // The maximum position is the canvas right/bottom edge minus the overlay size.
-                // Canvas right edge relative to container TL: CANVAS_CONTAINER_PADDING + canvasRect.width
                 const maxLeft = CANVAS_CONTAINER_PADDING + canvasRect.width - overlayWidth;
                 const maxTop = CANVAS_CONTAINER_PADDING + canvasRect.height - overlayHeight;
 
-                // Ensure overlay movement is constrained between the min and max bounds
                 selectedElement.style.left = Math.max(minLeft, Math.min(newX, maxLeft)) + 'px';
                 selectedElement.style.top = Math.max(minTop, Math.min(newY, maxTop)) + 'px';
                 
@@ -1237,7 +1227,6 @@
                 let newWidth = dragState.startWidth;
                 let newHeight = dragState.startHeight;
                 
-                // Use parseFloat with fallback for reading style properties
                 const currentLeft = parseFloat(selectedElement.style.left) || 0;
                 const currentTop = parseFloat(selectedElement.style.top) || 0;
 
@@ -1259,9 +1248,6 @@
                 selectedElement.style.height = newHeight + 'px';
                 
                 if (selectedElement.classList.contains('text-overlay')) {
-                    // Font size scaling based on new height
-                    const textContent = selectedElement.querySelector('.text-content');
-                    // Update start dimensions and coordinates for continuous scaling without accumulating error
                     const ratio = newHeight / dragState.startHeight;
                     const currentFontSize = parseFloat(selectedElement.style.fontSize) || 24;
                     const finalFontSize = Math.max(8, currentFontSize * ratio);
@@ -1270,7 +1256,6 @@
                     
                     updateControlsText(selectedElement, Math.round(finalFontSize) + 'px', getCurrentRotation(selectedElement));
                     
-                    // Update drag state for continuous, correct resizing
                     dragState.startWidth = newWidth;
                     dragState.startHeight = newHeight;
                     dragState.startX = coords.clientX;
@@ -1283,12 +1268,12 @@
             } else if (dragState.isRotating) {
                 const angle = Math.atan2(coords.clientY - dragState.centerY, coords.clientX - dragState.centerX);
                 const rotation = (angle * 180 / Math.PI) + 90;
-                const newRotation = Math.round(rotation / 5) * 5; // Snap to 5-degree increments
+                const newRotation = Math.round(rotation / 5) * 5;
                 
                 selectedElement.style.transform = `rotate(${newRotation}deg)`;
                 
                 const sizeText = selectedElement.classList.contains('text-overlay') ? 
-                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' : // Use overlay's style.fontSize
+                    Math.round(parseFloat(selectedElement.style.fontSize || 24)) + 'px' :
                     `${Math.round(parseFloat(selectedElement.style.width))}×${Math.round(parseFloat(selectedElement.style.height))}`;
                     
                 updateControlsText(selectedElement, sizeText, newRotation);
@@ -1327,7 +1312,6 @@
         function saveToUndoStack() {
             if (canvas.width > 0 && canvas.height > 0) {
                  if (undoStack.length > 10) undoStack.shift();
-                 // Create a deep copy of the image data to prevent modifications
                  const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                  const dataCopy = ctx.createImageData(currentData.width, currentData.height);
                  dataCopy.data.set(currentData.data);
@@ -1350,8 +1334,7 @@
                 ctx.putImageData(originalImageData, 0, 0);
                 clearOverlays();
                 undoStack = [];
-                saveToUndoStack(); // Add original image back to stack
-                // Regenerate pixelated version
+                saveToUndoStack();
                 generatePixelatedVersion();
                 updateStatus('Image reset to original');
             }
@@ -1368,27 +1351,22 @@
         function generateFinalImage(format) {
             updateStatus('Generating final image...');
             
-            // Create a temporary canvas to combine image and overlays
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             
-            // Draw white background for JPEG
             if (format === 'jpeg') {
                 tempCtx.fillStyle = '#ffffff';
                 tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             }
             
-            // Draw the main canvas
             tempCtx.drawImage(canvas, 0, 0);
             
-            // Calculate scale factors based on actual canvas size vs. displayed size
             const displayedCanvasWidth = canvas.offsetWidth;
             const displayedCanvasHeight = canvas.offsetHeight;
             const scaleX = canvas.width / displayedCanvasWidth;
             const scaleY = canvas.height / displayedCanvasHeight;
-            
             
             const overlays = [...imageOverlays, ...textElements];
             
@@ -1396,19 +1374,15 @@
                 try {
                     if (!overlay.style) return;
                     
-                    // 1. Get un-scaled CSS values (relative to the canvas-container's padded origin)
                     const left = parseFloat(overlay.style.left) || 0;
                     const top = parseFloat(overlay.style.top) || 0;
                     const width = parseFloat(overlay.style.width) || overlay.offsetWidth;
                     const height = parseFloat(overlay.style.height) || overlay.offsetHeight;
                     const rotation = getCurrentRotation(overlay);
                     
-                    // FIX 3: Subtract the container padding from CSS values 
-                    // to get the true canvas-relative position (0, 0 is canvas TL)
                     const canvasRelativeLeft = left - CANVAS_CONTAINER_PADDING;
                     const canvasRelativeTop = top - CANVAS_CONTAINER_PADDING;
 
-                    // 2. Scale the canvas-relative coordinates and dimensions to the high-res canvas size
                     const scaledX = canvasRelativeLeft * scaleX; 
                     const scaledY = canvasRelativeTop * scaleY;   
                     const scaledWidth = width * scaleX;
@@ -1416,32 +1390,25 @@
                     
                     tempCtx.save();
                     
-                    // 3. Translate to the center of the scaled element for rotation
                     tempCtx.translate(scaledX + scaledWidth / 2, scaledY + scaledHeight / 2);
                     tempCtx.rotate(rotation * Math.PI / 180);
                     
                     if (overlay.classList.contains('image-overlay')) {
-                        // Image Overlay Drawing
                         const img = overlay.querySelector('img');
                         if (!img) return;
                         tempCtx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
                         
                     } else if (overlay.classList.contains('text-overlay')) {
-                        // Text Overlay Drawing
                         const textContent = overlay.querySelector('.text-content');
                         if (!textContent) return;
                         
-                        // Background
                         if (overlay.style.backgroundColor && overlay.style.backgroundColor !== 'transparent' && scaledWidth > 0 && scaledHeight > 0) {
                             tempCtx.fillStyle = overlay.style.backgroundColor;
                             tempCtx.fillRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
                         }
                         
-                        // Text Styling
                         const computedStyle = window.getComputedStyle(overlay);
-                        // Using overlay's computed style, but scale font size
                         
-                        // Calculate font size (scaling the visual size)
                         const baseFontSize = parseFloat(computedStyle.fontSize) || 24;
                         const fontSize = baseFontSize * Math.min(scaleX, scaleY);
                         
@@ -1455,7 +1422,6 @@
                         tempCtx.textAlign = 'center';
                         tempCtx.textBaseline = 'middle';
                         
-                        // Handle multi-line text
                         const text = textContent.textContent || textContent.innerText || '';
                         const lines = text.split('\n');
                         const lineHeight = fontSize * 1.2;
@@ -1474,7 +1440,6 @@
                 }
             });
             
-            // --- Download ---
             try {
                 const link = document.createElement('a');
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -1501,7 +1466,6 @@
             const strength = document.getElementById('effectStrength').value;
             document.getElementById('strengthDisplay').textContent = strength;
             
-            // Regenerate pixelated version if pixelate tool is active
             if (currentTool === 'pixelate' && originalImageData) {
                 generatePixelatedVersion();
             }
@@ -1510,7 +1474,6 @@
         function updateStatus(message) {
             document.getElementById('statusText').textContent = message;
             
-            // Auto-clear status after 5 seconds for non-error messages
             if (!message.toLowerCase().includes('error')) {
                 setTimeout(() => {
                     if (document.getElementById('statusText').textContent === message) {
@@ -1525,10 +1488,8 @@
             document.getElementById('imageInfo').textContent = `${width} × ${height} pixels (${sizeInMB} MB)`;
         }
 
-        // Initialize first tool
         setTool('pixelate');
         
-        // Add some helpful tips
         setTimeout(() => {
             if (!canvas.width) {
                 updateStatus('Tip: Try uploading an image to start editing, or use Ctrl+Z to undo actions');
