@@ -2,17 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Editor: High Contrast Canvas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Editor: Mobile & Desktop</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-dark: #121212;
             --panel-bg: #1e1e1e;
             --text-main: #e0e0e0;
             --accent: #6366f1;
+            --accent-hover: #4f46e5;
             --border: #333;
+            --danger: #ef4444;
+            --success: #10b981;
         }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0;
@@ -20,180 +26,475 @@
             height: 100vh;
             background-color: var(--bg-dark);
             color: var(--text-main);
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: 'Inter', sans-serif;
             overflow: hidden;
         }
 
-        /* --- LAYOUT --- */
+        /* --- LAYOUTS --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
         .sidebar, .right-sidebar {
-            width: 260px;
+            width: 280px;
             background-color: var(--panel-bg);
             display: flex;
             flex-direction: column;
-            padding: 15px;
+            padding: 20px;
             gap: 15px;
             overflow-y: auto;
-            z-index: 10;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 20;
+            border-right: 1px solid var(--border);
+            transition: transform 0.3s ease;
         }
         
-        .sidebar { border-right: 1px solid var(--border); }
-        .right-sidebar { border-left: 1px solid var(--border); }
+        .right-sidebar { border-left: 1px solid var(--border); border-right: none; }
 
         .workspace {
             flex: 1;
-            /* Changed background to a slightly lighter dark gray to contrast with the shadow */
             background-color: #1a1a1a; 
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden; 
             position: relative;
+            touch-action: none; /* Critical for custom gestures */
         }
 
-        /* --- NEW: Make the canvas stand out --- */
-        /* Fabric.js wraps the actual canvas tag in a wrapper class called .canvas-container */
         .canvas-container {
-            /* Add a strong shadow to make it lift off the page */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            /* Optional: A very subtle border */
-            border: 1px solid #333;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
-
 
         /* --- UI ELEMENTS --- */
-        h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
+        h3 { margin: 10px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #888; }
         
         button, .btn-upload {
-            background-color: #333;
+            background-color: #2d2d2d;
             color: white;
-            border: 1px solid #444;
-            padding: 10px;
-            border-radius: 6px;
+            border: 1px solid #3d3d3d;
+            padding: 12px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
+            font-weight: 500;
             transition: all 0.2s;
             text-align: center;
             display: block;
             width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
-        button:hover { background-color: var(--accent); border-color: var(--accent); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button:active { transform: scale(0.98); }
+        button:hover { background-color: #3d3d3d; border-color: #555; }
+        button.primary { background-color: var(--accent); border-color: var(--accent); }
+        button.primary:hover { background-color: var(--accent-hover); }
+        button.danger { background-color: rgba(239, 68, 68, 0.1); border-color: var(--danger); color: var(--danger); }
+        button.danger:hover { background-color: var(--danger); color: white; }
 
-        .row { display: flex; gap: 5px; }
-        .row input { width: 50%; background: #333; border: 1px solid #444; color: white; padding: 5px; border-radius: 4px; }
+        .row { display: flex; gap: 8px; }
+        .row > * { flex: 1; }
+        
+        input[type="number"], input[type="text"] { 
+            width: 100%; background: #2d2d2d; border: 1px solid #3d3d3d; 
+            color: white; padding: 10px; border-radius: 6px; 
+        }
 
-        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 10px 0; }
+        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 10px 0; height: 6px; background: #333; border-radius: 3px; }
         input[type="file"] { display: none; }
 
-        /* Crop Mode Overlay */
+        /* --- MOBILE NAVIGATION (Hidden on Desktop) --- */
+        .mobile-nav { display: none; }
+        .mobile-header { display: none; }
+
+        /* --- CROP OVERLAY --- */
         #crop-controls {
             display: none;
-            background: #2a2a2a;
-            padding: 10px;
-            border-radius: 8px;
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 12px;
             border: 1px solid var(--accent);
-            margin-bottom: 15px;
-        }
-        
-        .controls-info {
-            font-size: 11px;
-            color: #666;
-            margin-top: auto;
-            text-align: center;
-            padding-top: 20px;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: 90%;
+            max-width: 300px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
+        .controls-info {
+            font-size: 11px; color: #666; margin-top: auto; text-align: center; padding-top: 20px;
+        }
+
+        /* --- RESPONSIVE / MOBILE STYLES --- */
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            
+            .sidebar, .right-sidebar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 60vh;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(110%); /* Hidden by default */
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+                padding-bottom: 80px; /* Space for nav */
+            }
+
+            .sidebar.active, .right-sidebar.active {
+                transform: translateY(0);
+            }
+
+            /* Mobile Header */
+            .mobile-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 15px;
+                background: var(--panel-bg);
+                border-bottom: 1px solid var(--border);
+                position: fixed; top: 0; width: 100%; z-index: 50;
+            }
+            .mobile-header h1 { margin: 0; font-size: 16px; color: white; }
+
+            .workspace {
+                margin-top: 50px; /* Header height */
+                margin-bottom: 60px; /* Nav height */
+            }
+
+            /* Bottom Nav */
+            .mobile-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background: #1a1a1a;
+                border-top: 1px solid var(--border);
+                z-index: 100;
+                height: 60px;
+                justify-content: space-around;
+                align-items: center;
+            }
+
+            .nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                color: #888;
+                font-size: 10px;
+                background: none;
+                border: none;
+                padding: 5px;
+            }
+            
+            .nav-item.active { color: var(--accent); }
+            .nav-item span { font-size: 18px; margin-bottom: 2px; }
+
+            /* Adjust controls for mobile */
+            .controls-info { display: none; } /* Hide mouse instructions on mobile */
+            
+            /* Specific fix for the "Files" tab content */
+            #tab-files { z-index: 30; }
+            #tab-effects { z-index: 30; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h3>File</h3>
-        <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
-        <input type="file" id="imgLoader" accept="image/*">
-        <button onclick="downloadImage()" style="background-color: #059669;">💾 Export Image</button>
+    <div class="mobile-header">
+        <h1>Pro Editor</h1>
+        <button onclick="downloadImage()" style="width: auto; padding: 6px 12px; margin:0; font-size: 12px; background: var(--success); border: none;">Save</button>
+    </div>
 
-        <h3>Canvas Size</h3>
-        <div class="row">
-            <input type="number" id="canvas-w" placeholder="W">
-            <input type="number" id="canvas-h" placeholder="H">
-        </div>
-        <button onclick="resizeCanvasManual()">Resize Canvas</button>
-
-        <h3>History</h3>
-        <div class="row">
-            <button onclick="undo()">↩ Undo</button>
-            <button onclick="redo()">↪ Redo</button>
-        </div>
-
-        <h3>Tools</h3>
-        <button onclick="toggleCropMode()">✂️ Crop Image</button>
+    <div class="app-container">
         
-        <div id="crop-controls">
-            <p style="font-size: 12px; margin:0 0 5px 0;">Adjust the box then click Apply</p>
+        <div class="sidebar" id="panel-files">
+            <div class="mobile-close-handle" onclick="closeAllPanels()" style="text-align: center; color: #555; padding-bottom: 10px; display: none;">▼ Close Panel</div>
+            
+            <h3>Project</h3>
+            <label for="imgLoader" class="btn-upload primary">📂 Upload Image</label>
+            <input type="file" id="imgLoader" accept="image/*">
+            
+            <button onclick="downloadImage()" class="desktop-only" style="background-color: var(--success); border-color: var(--success);">💾 Export Image</button>
+
+            <h3>Canvas</h3>
             <div class="row">
-                <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
-                <button onclick="cancelCrop()" style="background-color: #ef4444;">❌ Cancel</button>
+                <input type="number" id="canvas-w" placeholder="W">
+                <input type="number" id="canvas-h" placeholder="H">
+            </div>
+            <button onclick="resizeCanvasManual()">Resize</button>
+
+            <h3>Tools</h3>
+            <button onclick="addText()">Aa Add Text</button>
+            <button onclick="toggleCropMode()">✂️ Crop</button>
+            <button onclick="resetZoom()">🔍 Reset View</button>
+
+            <h3>History</h3>
+            <div class="row">
+                <button onclick="undo()">↩ Undo</button>
+                <button onclick="redo()">↪ Redo</button>
+            </div>
+            
+            <button onclick="deleteObject()" class="danger" style="margin-top: 10px;">🗑️ Delete Selected</button>
+
+            <div class="controls-info">
+                🖱️ Scroll to Zoom | Alt+Drag to Pan
             </div>
         </div>
 
-        <button onclick="addText()">Aa Add Text</button>
-        <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
-        
-        <button onclick="resetZoom()">🔍 Reset Zoom (100%)</button>
-
-        <div class="controls-info">
-            🖱️ <b>Scroll</b> to Zoom<br>
-            ⌨️ <b>Alt + Drag</b> to Pan
+        <div class="workspace" id="workspace-container">
+            <canvas id="c"></canvas>
+            
+            <div id="crop-controls">
+                <p style="font-size: 12px; margin:0 0 10px 0; color: white; text-align: center;">Adjust box & Apply</p>
+                <div class="row">
+                    <button onclick="applyCrop()" class="primary">✅ Apply</button>
+                    <button onclick="cancelCrop()" class="danger">❌ Cancel</button>
+                </div>
+            </div>
         </div>
+
+        <div class="right-sidebar" id="panel-effects">
+            <div class="mobile-close-handle" onclick="closeAllPanels()" style="text-align: center; color: #555; padding-bottom: 10px; display: none;">▼ Close Panel</div>
+
+            <h3>Adjustments</h3>
+            <div class="control-group">
+                <label style="font-size: 12px; color: #aaa;">Opacity</label>
+                <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
+            </div>
+
+            <h3>Filters</h3>
+            <div class="control-group">
+                <label style="font-size: 12px; color: #aaa;">Blur</label>
+                <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
+            </div>
+            <div class="control-group">
+                <label style="font-size: 12px; color: #aaa;">Pixelate</label>
+                <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+            </div>
+            
+            <h3>Layering</h3>
+            <div class="row">
+                <button onclick="sendBack()">⬇️ Back</button>
+                <button onclick="bringFront()">⬆️ Front</button>
+            </div>
+        </div>
+
     </div>
 
-    <div class="workspace" id="workspace-container">
-        <canvas id="c"></canvas>
-    </div>
-
-    <div class="right-sidebar">
-        <h3>Effects</h3>
-        <div class="control-group">
-            <label>Opacity</label>
-            <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
-        </div>
-        <div class="control-group">
-            <label>Blur</label>
-            <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
-        </div>
-        <div class="control-group">
-            <label>Pixelate</label>
-            <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
-        </div>
-        
-        <h3>Layers</h3>
-        <button onclick="sendBack()">⬇️ Send Backwards</button>
-        <button onclick="bringFront()">⬆️ Bring Forward</button>
+    <div class="mobile-nav">
+        <button class="nav-item" onclick="toggleMobilePanel('panel-files')">
+            <span>🛠️</span>Tools
+        </button>
+        <button class="nav-item" onclick="toggleMobilePanel('panel-effects')">
+            <span>✨</span>Effects
+        </button>
+        <button class="nav-item" onclick="deleteObject()">
+            <span>🗑️</span>Delete
+        </button>
     </div>
 
     <script>
-        // --- 1. INITIALIZATION & HISTORY ---
+        // --- 1. INITIALIZATION & RESPONSIVE SETUP ---
         const canvas = new fabric.Canvas('c', {
-            // Changed background color to WHITE for high contrast
-            backgroundColor: '#5d5d5d', 
+            backgroundColor: '#ffffff', // High contrast for the canvas itself
             preserveObjectStacking: true,
             selection: true
         });
 
-        // Set initial workspace size
         const workspaceEl = document.getElementById('workspace-container');
-        // Initial fit to screen
-        canvas.setDimensions({ width: workspaceEl.clientWidth * 0.8, height: workspaceEl.clientHeight * 0.8 });
-        // Center the canvas initially
-        workspaceEl.scrollTo((workspaceEl.scrollWidth - workspaceEl.clientWidth) / 2, (workspaceEl.scrollHeight - workspaceEl.clientHeight) / 2);
-        updateCanvasInputs();
 
-        // History State
+        // Initial Sizing
+        function fitCanvasToScreen() {
+            const width = workspaceEl.clientWidth;
+            const height = workspaceEl.clientHeight;
+            // Provide some padding
+            canvas.setDimensions({ width: width * 0.9, height: height * 0.8 });
+            updateCanvasInputs();
+        }
+        
+        // Wait for DOM to load fully
+        setTimeout(() => {
+            fitCanvasToScreen();
+            centerCanvasScroll();
+        }, 100);
+
+        function centerCanvasScroll() {
+            workspaceEl.scrollTo((workspaceEl.scrollWidth - workspaceEl.clientWidth) / 2, (workspaceEl.scrollHeight - workspaceEl.clientHeight) / 2);
+        }
+
+        function updateCanvasInputs() {
+            document.getElementById('canvas-w').value = canvas.width;
+            document.getElementById('canvas-h').value = canvas.height;
+        }
+
+        // --- 2. MOBILE & DESKTOP GESTURES (Zoom/Pan) ---
+        
+        // Desktop: Mouse Wheel Zoom
+        canvas.on('mouse:wheel', function(opt) {
+            const delta = opt.e.deltaY;
+            let zoom = canvas.getZoom();
+            zoom *= 0.999 ** delta;
+            if (zoom > 20) zoom = 20;
+            if (zoom < 0.01) zoom = 0.01;
+            canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        });
+
+        // Desktop: Alt+Drag Pan
+        let isDragging = false;
+        let lastPosX, lastPosY;
+
+        canvas.on('mouse:down', function(opt) {
+            const evt = opt.e;
+            if (evt.altKey === true) {
+                isDragging = true;
+                this.selection = false;
+                lastPosX = evt.clientX;
+                lastPosY = evt.clientY;
+            }
+        });
+
+        canvas.on('mouse:move', function(opt) {
+            if (isDragging) {
+                const e = opt.e;
+                const vpt = this.viewportTransform;
+                vpt[4] += e.clientX - lastPosX;
+                vpt[5] += e.clientY - lastPosY;
+                this.requestRenderAll();
+                lastPosX = e.clientX;
+                lastPosY = e.clientY;
+            }
+        });
+
+        canvas.on('mouse:up', function() {
+            this.setViewportTransform(this.viewportTransform);
+            isDragging = false;
+            this.selection = true;
+        });
+
+        // --- MOBILE TOUCH GESTURES (Pinch Zoom & Two Finger Pan) ---
+        let lastTouchDistance = 0;
+        let isTouchDragging = false;
+        let touchStartPoints = [];
+
+        const canvasWrapper = document.querySelector('.upper-canvas'); 
+        // Note: fabric creates a wrapper class 'upper-canvas'. We attach native listeners to the container.
+        
+        const canvasContainer = document.querySelector('.canvas-container');
+
+        canvasContainer.addEventListener('touchstart', function(e) {
+            if (e.touches.length === 2) {
+                isTouchDragging = true;
+                canvas.selection = false; // Disable selection while panning/zooming
+                
+                // Calculate initial distance for zoom
+                const p1 = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                const p2 = {x: e.touches[1].clientX, y: e.touches[1].clientY};
+                lastTouchDistance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                
+                // Save start points for panning
+                touchStartPoints = [p1, p2];
+                e.preventDefault(); // Prevent browser scroll
+            }
+        }, { passive: false });
+
+        canvasContainer.addEventListener('touchmove', function(e) {
+            if (e.touches.length === 2 && isTouchDragging) {
+                const p1 = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                const p2 = {x: e.touches[1].clientX, y: e.touches[1].clientY};
+                
+                // 1. PINCH ZOOM
+                const currentDistance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (lastTouchDistance > 0) {
+                    const zoomLevel = currentDistance / lastTouchDistance;
+                    let newZoom = canvas.getZoom() * zoomLevel;
+                    
+                    // Limit zoom
+                    if (newZoom > 10) newZoom = 10;
+                    if (newZoom < 0.1) newZoom = 0.1;
+                    
+                    // Zoom to center of the two fingers
+                    const midPoint = {
+                        x: (p1.x + p2.x) / 2,
+                        y: (p1.y + p2.y) / 2
+                    };
+                    
+                    // Calculate point relative to canvas
+                    const rect = canvas.getElement().getBoundingClientRect();
+                    const pointOnCanvas = {
+                        x: midPoint.x - rect.left,
+                        y: midPoint.y - rect.top
+                    };
+
+                    canvas.zoomToPoint(pointOnCanvas, newZoom);
+                    lastTouchDistance = currentDistance;
+                }
+
+                // 2. TWO FINGER PAN
+                const currentMidX = (p1.x + p2.x) / 2;
+                const currentMidY = (p1.y + p2.y) / 2;
+                const startMidX = (touchStartPoints[0].x + touchStartPoints[1].x) / 2;
+                const startMidY = (touchStartPoints[0].y + touchStartPoints[1].y) / 2;
+                
+                const deltaX = currentMidX - startMidX;
+                const deltaY = currentMidY - startMidY;
+
+                const vpt = canvas.viewportTransform;
+                vpt[4] += deltaX;
+                vpt[5] += deltaY;
+                canvas.requestRenderAll();
+
+                // Update start points for next frame
+                touchStartPoints = [p1, p2];
+
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        canvasContainer.addEventListener('touchend', function(e) {
+            if (e.touches.length < 2) {
+                isTouchDragging = false;
+                canvas.selection = true; // Re-enable selection
+            }
+        });
+
+        // --- 3. UI LOGIC (Mobile Panels) ---
+        function toggleMobilePanel(panelId) {
+            // Close others first
+            const panels = document.querySelectorAll('.sidebar, .right-sidebar');
+            const target = document.getElementById(panelId);
+            
+            // Check if already open
+            const isOpen = target.classList.contains('active');
+
+            panels.forEach(p => {
+                p.classList.remove('active');
+                p.querySelector('.mobile-close-handle').style.display = 'none';
+            });
+
+            if (!isOpen) {
+                target.classList.add('active');
+                // Show close handle only on mobile
+                if(window.innerWidth <= 768) {
+                    target.querySelector('.mobile-close-handle').style.display = 'block';
+                }
+            }
+        }
+
+        function closeAllPanels() {
+            const panels = document.querySelectorAll('.sidebar, .right-sidebar');
+            panels.forEach(p => p.classList.remove('active'));
+        }
+
+        // --- 4. HISTORY SYSTEM (Unchanged logic, kept for functionality) ---
         let history = [];
         let historyProcessing = false;
         let mods = -1;
@@ -210,12 +511,8 @@
         }
 
         canvas.on('object:modified', saveHistory);
-        canvas.on('object:added', (e) => { 
-            if(!historyProcessing && e.target.type !== 'line') saveHistory() 
-        });
-        canvas.on('object:removed', (e) => { 
-            if(!historyProcessing && e.target.type !== 'line') saveHistory() 
-        });
+        canvas.on('object:added', (e) => { if(!historyProcessing && e.target.type !== 'line') saveHistory() });
+        canvas.on('object:removed', (e) => { if(!historyProcessing && e.target.type !== 'line') saveHistory() });
 
         function undo() {
             if (mods > 0) {
@@ -239,15 +536,7 @@
             }
         }
 
-        document.addEventListener('keydown', function(e) {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault();
-                undo();
-            }
-        });
-
-
-        // --- 2. UPLOAD & AUTO-LAYOUT ---
+        // --- 5. IMAGE UPLOAD & RESIZE ---
         document.getElementById('imgLoader').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -255,36 +544,21 @@
                 imgObj.src = event.target.result;
                 imgObj.onload = function() {
                     const imgInstance = new fabric.Image(imgObj);
-                    
-                    // If first upload, resize canvas to fit image (with some padding)
-                    if (canvas.getObjects().length === 0) {
-                         // Optional: Resize canvas to fit the first image texture
-                         // canvas.setDimensions({ width: imgInstance.width, height: imgInstance.height });
-                         // updateCanvasInputs();
-                    }
-
+                    // Scale image to fit initial canvas if too big
                     if (imgInstance.width > canvas.width) {
                         imgInstance.scaleToWidth(canvas.width * 0.8);
                     }
-                    
                     canvas.add(imgInstance);
                     canvas.centerObject(imgInstance);
-                    imgInstance.setCoords();
-                    
                     canvas.setActiveObject(imgInstance);
                     canvas.renderAll();
                     saveHistory();
+                    closeAllPanels(); // Close panel on mobile to show image
                 }
             }
             reader.readAsDataURL(e.target.files[0]);
-            e.target.value = ''; 
+            e.target.value = '';
         });
-
-        // --- 3. CANVAS RESIZE ---
-        function updateCanvasInputs() {
-            document.getElementById('canvas-w').value = canvas.width;
-            document.getElementById('canvas-h').value = canvas.height;
-        }
 
         function resizeCanvasManual() {
             const w = parseInt(document.getElementById('canvas-w').value);
@@ -294,186 +568,26 @@
             saveHistory();
         }
 
-        // --- 4. ZOOM & PAN SYSTEM ---
-        
-        // Mouse Wheel Zoom
-        canvas.on('mouse:wheel', function(opt) {
-            const delta = opt.e.deltaY;
-            let zoom = canvas.getZoom();
-            zoom *= 0.999 ** delta;
-            if (zoom > 20) zoom = 20;
-            if (zoom < 0.1) zoom = 0.1;
-            canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-            opt.e.preventDefault();
-            opt.e.stopPropagation();
-        });
-
-        // Panning (Alt + Drag)
-        let isDragging = false;
-        let lastPosX;
-        let lastPosY;
-
-        canvas.on('mouse:down', function(opt) {
-            const evt = opt.e;
-            if (evt.altKey === true) {
-                isDragging = true;
-                this.selection = false;
-                lastPosX = evt.clientX;
-                lastPosY = evt.clientY;
-            }
-        });
-
-        canvas.on('mouse:move', function(opt) {
-            if (this.isDragging) {
-                const e = opt.e;
-                const vpt = this.viewportTransform;
-                vpt[4] += e.clientX - lastPosX;
-                vpt[5] += e.clientY - lastPosY;
-                this.requestRenderAll();
-                lastPosX = e.clientX;
-                lastPosY = e.clientY;
-            }
-        });
-
-        canvas.on('mouse:up', function(opt) {
-            this.setViewportTransform(this.viewportTransform);
-            this.isDragging = false;
-            this.selection = true;
-        });
-
         function resetZoom() {
             canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            // Re-center logic
+            const workspaceW = workspaceEl.clientWidth;
+            const workspaceH = workspaceEl.clientHeight;
+            // canvas.zoomToPoint(new fabric.Point(canvas.width / 2, canvas.height / 2), 1);
         }
 
-        // --- 5. ADVANCED MAGNET / SNAPPING ---
-        
-        canvas.on('object:moving', function (e) {
-            const obj = e.target;
-            const snapRange = 10; 
-            clearGuideLines();
-
-            let snappedV = false;
-            let snappedH = false;
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-
-            const objRect = obj.getBoundingRect(true); 
-            const objCenterX = objRect.left + objRect.width / 2;
-            const objCenterY = objRect.top + objRect.height / 2;
-
-            // --- Canvas Border Snapping ---
-            if (Math.abs(objRect.left) < snapRange) {
-                obj.set({ left: 0 + (obj.left - objRect.left) }); 
-                drawGuideLine(0, 0, 0, canvasHeight);
-                snappedV = true;
-            } else if (Math.abs(objRect.left + objRect.width - canvasWidth) < snapRange) {
-                obj.set({ left: canvasWidth - objRect.width + (obj.left - objRect.left) });
-                drawGuideLine(canvasWidth, 0, canvasWidth, canvasHeight);
-                snappedV = true;
-            } else if (Math.abs(objCenterX - canvasWidth / 2) < snapRange) {
-                obj.set({ left: canvasWidth / 2 - (objCenterX - obj.left) });
-                drawGuideLine(canvasWidth / 2, 0, canvasWidth / 2, canvasHeight);
-                snappedV = true;
-            }
-
-            if (Math.abs(objRect.top) < snapRange) {
-                obj.set({ top: 0 + (obj.top - objRect.top) });
-                drawGuideLine(0, 0, canvasWidth, 0);
-                snappedH = true;
-            } else if (Math.abs(objRect.top + objRect.height - canvasHeight) < snapRange) {
-                obj.set({ top: canvasHeight - objRect.height + (obj.top - objRect.top) });
-                drawGuideLine(0, canvasHeight, canvasWidth, canvasHeight);
-                snappedH = true;
-            } else if (Math.abs(objCenterY - canvasHeight / 2) < snapRange) {
-                obj.set({ top: canvasHeight / 2 - (objCenterY - obj.top) });
-                drawGuideLine(0, canvasHeight / 2, canvasWidth, canvasHeight / 2);
-                snappedH = true;
-            }
-
-            // --- Object to Object Snapping ---
-            if (!snappedV || !snappedH) {
-                canvas.getObjects().forEach(target => {
-                    if (target === obj || target.type === 'line' || target.type === 'rect' && target.excludeFromSnapping) return;
-
-                    const targetRect = target.getBoundingRect(true);
-                    const targetCenterX = targetRect.left + targetRect.width / 2;
-                    const targetCenterY = targetRect.top + targetRect.height / 2;
-
-                    if (!snappedV) {
-                        if (Math.abs(objRect.left - targetRect.left) < snapRange) {
-                            obj.set({ left: targetRect.left + (obj.left - objRect.left) });
-                            drawGuideLine(targetRect.left, 0, targetRect.left, canvasHeight);
-                            snappedV = true;
-                        } else if (Math.abs(objRect.left - (targetRect.left + targetRect.width)) < snapRange) {
-                            obj.set({ left: targetRect.left + targetRect.width + (obj.left - objRect.left) });
-                            drawGuideLine(targetRect.left + targetRect.width, 0, targetRect.left + targetRect.width, canvasHeight);
-                            snappedV = true;
-                        } else if (Math.abs((objRect.left + objRect.width) - (targetRect.left + targetRect.width)) < snapRange) {
-                             obj.set({ left: targetRect.left + targetRect.width - objRect.width + (obj.left - objRect.left) });
-                             drawGuideLine(targetRect.left + targetRect.width, 0, targetRect.left + targetRect.width, canvasHeight);
-                             snappedV = true;
-                        } else if (Math.abs(objCenterX - targetCenterX) < snapRange) {
-                            obj.set({ left: targetCenterX - (objCenterX - obj.left) });
-                            drawGuideLine(targetCenterX, 0, targetCenterX, canvasHeight);
-                            snappedV = true;
-                        }
-                    }
-
-                    if (!snappedH) {
-                        if (Math.abs(objRect.top - targetRect.top) < snapRange) {
-                            obj.set({ top: targetRect.top + (obj.top - objRect.top) });
-                            drawGuideLine(0, targetRect.top, canvasWidth, targetRect.top);
-                            snappedH = true;
-                        } else if (Math.abs((objRect.top + objRect.height) - (targetRect.top + targetRect.height)) < snapRange) {
-                             obj.set({ top: targetRect.top + targetRect.height - objRect.height + (obj.top - objRect.top) });
-                             drawGuideLine(0, targetRect.top + targetRect.height, canvasWidth, targetRect.top + targetRect.height);
-                             snappedH = true;
-                        } else if (Math.abs(objCenterY - targetCenterY) < snapRange) {
-                            obj.set({ top: targetCenterY - (objCenterY - obj.top) });
-                            drawGuideLine(0, targetCenterY, canvasWidth, targetCenterY);
-                            snappedH = true;
-                        }
-                    }
-                });
-            }
-        });
-
-        canvas.on('object:modified', clearGuideLines);
-        canvas.on('mouse:up', clearGuideLines);
-
-        let guideLines = [];
-        function drawGuideLine(x1, y1, x2, y2) {
-            const line = new fabric.Line([x1, y1, x2, y2], {
-                stroke: '#00d2ff',
-                strokeWidth: 1,
-                selectable: false,
-                evented: false,
-                strokeDashArray: [5, 5],
-                opacity: 0.8
-            });
-            canvas.add(line);
-            guideLines.push(line);
-        }
-
-        function clearGuideLines() {
-            guideLines.forEach(line => canvas.remove(line));
-            guideLines = [];
-        }
-
-
-        // --- 6. CROP SYSTEM ---
+        // --- 6. TOOLS & CROP ---
         let cropRect = null;
         let imageToCrop = null;
 
         function toggleCropMode() {
-            resetZoom(); 
-
+            resetZoom();
             const activeObj = canvas.getActiveObject();
             if (!activeObj || activeObj.type !== 'image') {
-                alert("Please select an image to crop first.");
+                alert("Select an image to crop.");
                 return;
             }
-
+            closeAllPanels(); // Give view space
             imageToCrop = activeObj;
             document.getElementById('crop-controls').style.display = 'block';
 
@@ -488,8 +602,7 @@
                 strokeDashArray: [5, 5],
                 cornerColor: 'white',
                 cornerStrokeColor: '#6366f1',
-                transparentCorners: false,
-                excludeFromSnapping: true 
+                transparentCorners: false
             });
 
             canvas.add(cropRect);
@@ -499,14 +612,12 @@
 
         function applyCrop() {
             if (!cropRect || !imageToCrop) return;
-
             const left = cropRect.left - imageToCrop.left;
             const top = cropRect.top - imageToCrop.top;
             const width = cropRect.getScaledWidth();
             const height = cropRect.getScaledHeight();
 
             cropRect.visible = false;
-            
             const croppedData = canvas.toDataURL({
                 left: cropRect.left,
                 top: cropRect.top,
@@ -517,16 +628,11 @@
             });
 
             fabric.Image.fromURL(croppedData, function(newImg) {
-                newImg.set({
-                    left: cropRect.left,
-                    top: cropRect.top
-                });
-                
+                newImg.set({ left: cropRect.left, top: cropRect.top });
                 canvas.remove(imageToCrop);
                 canvas.remove(cropRect);
                 canvas.add(newImg);
                 canvas.setActiveObject(newImg);
-                
                 cancelCrop();
                 saveHistory();
             });
@@ -540,14 +646,14 @@
             canvas.renderAll();
         }
 
-        // --- 7. STANDARD TOOLS ---
         function addText() {
-            const text = new fabric.IText('Type Here', {
+            const text = new fabric.IText('Double Tap', {
                 left: canvas.width/2, top: canvas.height/2,
                 fontFamily: 'sans-serif', fill: '#111', fontSize: 40, originX: 'center', originY: 'center'
             });
             canvas.add(text);
             canvas.setActiveObject(text);
+            closeAllPanels();
         }
 
         function deleteObject() {
@@ -559,7 +665,7 @@
             }
         }
 
-        // Effects
+        // --- 7. EFFECTS ---
         function applyBlur() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
@@ -569,7 +675,7 @@
             obj.applyFilters();
             canvas.renderAll();
         }
-        
+
         function applyPixelate() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
@@ -588,32 +694,25 @@
             }
         }
 
-        function bringFront() {
-            const obj = canvas.getActiveObject();
-            if(obj) { obj.bringForward(); saveHistory(); }
-        }
-
-        function sendBack() {
-            const obj = canvas.getActiveObject();
-            if(obj) { obj.sendBackwards(); saveHistory(); }
-        }
+        function bringFront() { const obj = canvas.getActiveObject(); if(obj) { obj.bringForward(); saveHistory(); } }
+        function sendBack() { const obj = canvas.getActiveObject(); if(obj) { obj.sendBackwards(); saveHistory(); } }
 
         function downloadImage() {
             const vpt = canvas.viewportTransform;
             canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-            
             const link = document.createElement('a');
-            link.download = 'edited.png';
+            link.download = 'pro-edit.png';
             link.href = canvas.toDataURL({ format: 'png', multiplier: 2 });
             link.click();
-
             canvas.setViewportTransform(vpt);
         }
-        
-        window.addEventListener('keydown', (e) => {
-            if(e.key === 'Delete') deleteObject();
-        });
 
+        // Prevent standard keyboard shortcuts overlapping text editing
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'Delete' && canvas.getActiveObject() && !canvas.getActiveObject().isEditing) {
+                deleteObject();
+            }
+        });
     </script>
 </body>
 </html>
