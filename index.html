@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pro Editor: Crop & Magnet</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
@@ -13,51 +13,113 @@
             --accent: #6366f1;
             --border: #333;
         }
-
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
         body {
             margin: 0;
-            display: flex;
-            height: 100vh;
             background-color: var(--bg-dark);
             color: var(--text-main);
             font-family: 'Inter', system-ui, sans-serif;
             overflow: hidden;
-        }
-
-        /* --- LAYOUT --- */
-        .sidebar, .right-sidebar {
-            width: 260px;
-            background-color: var(--panel-bg);
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            gap: 15px;
-            overflow-y: auto;
-            z-index: 10;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         
-        .sidebar { border-right: 1px solid var(--border); }
-        .right-sidebar { border-left: 1px solid var(--border); }
-
+        /* Mobile Layout */
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+        }
+        
+        /* Top Toolbar */
+        .top-toolbar {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        
+        .top-toolbar button {
+            padding: 8px 12px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .top-toolbar button:active {
+            background-color: var(--accent);
+        }
+        
+        /* Canvas Area */
         .workspace {
             flex: 1;
             background-color: #0d0d0d;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: auto;
+            overflow: hidden;
             position: relative;
+            touch-action: none;
         }
-
-        /* --- UI ELEMENTS --- */
-        h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
+        
+        /* Bottom Panel */
+        .bottom-panel {
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border);
+            max-height: 45vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .bottom-panel.collapsed {
+            transform: translateY(calc(100% - 48px));
+        }
+        
+        .panel-handle {
+            padding: 12px;
+            text-align: center;
+            background-color: #2a2a2a;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            user-select: none;
+        }
+        
+        .panel-content {
+            padding: 15px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+        }
+        
+        .section h3 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #888;
+        }
         
         button, .btn-upload {
             background-color: #333;
             color: white;
             border: 1px solid #444;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 13px;
@@ -65,111 +127,296 @@
             text-align: center;
             display: block;
             width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
-
-        button:hover { background-color: var(--accent); border-color: var(--accent); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .row { display: flex; gap: 5px; }
-        .row input { width: 50%; background: #333; border: 1px solid #444; color: white; padding: 5px; border-radius: 4px; }
-
-        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 10px 0; }
-        input[type="file"] { display: none; }
-
-        /* Crop Mode Overlay */
+        
+        button:active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .row input {
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            margin: 8px 0;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        
         #crop-controls {
-            display: none; /* Hidden by default */
+            display: none;
             background: #2a2a2a;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: 1px solid var(--accent);
             margin-bottom: 15px;
         }
-
+        
+        #crop-controls p {
+            font-size: 12px;
+            margin: 0 0 8px 0;
+        }
+        
+        .btn-success {
+            background-color: #059669 !important;
+        }
+        
+        .btn-danger {
+            background-color: #ef4444 !important;
+        }
+        
+        /* Desktop View */
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+            
+            .top-toolbar {
+                display: none;
+            }
+            
+            .sidebar, .right-sidebar {
+                width: 260px;
+                background-color: var(--panel-bg);
+                display: flex;
+                flex-direction: column;
+                padding: 15px;
+                gap: 15px;
+                overflow-y: auto;
+                z-index: 10;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            }
+            
+            .sidebar {
+                border-right: 1px solid var(--border);
+            }
+            
+            .right-sidebar {
+                border-left: 1px solid var(--border);
+            }
+            
+            .bottom-panel {
+                display: none;
+            }
+            
+            .workspace {
+                flex: 1;
+            }
+            
+            button:hover {
+                background-color: var(--accent);
+                border-color: var(--accent);
+            }
+        }
+        
+        /* Hide scrollbar */
+        .top-toolbar::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .top-toolbar::-webkit-scrollbar-track {
+            background: var(--panel-bg);
+        }
+        
+        .top-toolbar::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body>
-
-    <div class="sidebar">
-        <h3>File</h3>
-        <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
-        <input type="file" id="imgLoader" accept="image/*">
-        <button onclick="downloadImage()" style="background-color: #059669;">💾 Export Image</button>
-
-        <h3>Canvas Size</h3>
-        <div class="row">
-            <input type="number" id="canvas-w" placeholder="W">
-            <input type="number" id="canvas-h" placeholder="H">
+    <div class="container">
+        <!-- Mobile Top Toolbar -->
+        <div class="top-toolbar">
+            <label for="imgLoader" class="btn-upload" style="margin: 0;">📂 Upload</label>
+            <input type="file" id="imgLoader" accept="image/*">
+            <button onclick="toggleBottomPanel()">⚙️ Tools</button>
+            <button onclick="undo()">↩️ Undo</button>
+            <button onclick="redo()">↪️ Redo</button>
+            <button onclick="downloadImage()">💾 Export</button>
         </div>
-        <button onclick="resizeCanvasManual()">Resize Canvas</button>
-
-        <h3>History</h3>
-        <div class="row">
-            <button onclick="undo()">↩ Undo</button>
-            <button onclick="redo()">↪ Redo</button>
-        </div>
-
-        <h3>Tools</h3>
-        <button onclick="toggleCropMode()">✂️ Crop Image</button>
         
-        <div id="crop-controls">
-            <p style="font-size: 12px; margin:0 0 5px 0;">Adjust the box then click Apply</p>
+        <!-- Desktop Left Sidebar -->
+        <div class="sidebar">
+            <h3>File</h3>
+            <label for="imgLoaderDesktop" class="btn-upload">📂 Upload Image</label>
+            <input type="file" id="imgLoaderDesktop" accept="image/*">
+            <button onclick="downloadImage()" class="btn-success">💾 Export Image</button>
+            
+            <h3>Canvas Size</h3>
             <div class="row">
-                <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
-                <button onclick="cancelCrop()" style="background-color: #ef4444;">❌ Cancel</button>
+                <input type="number" id="canvas-w" placeholder="W">
+                <input type="number" id="canvas-h" placeholder="H">
+            </div>
+            <button onclick="resizeCanvasManual()">Resize Canvas</button>
+            
+            <h3>History</h3>
+            <div class="row">
+                <button onclick="undo()">↩ Undo</button>
+                <button onclick="redo()">↪ Redo</button>
+            </div>
+            
+            <h3>Tools</h3>
+            <button onclick="toggleCropMode()">✂️ Crop Image</button>
+            
+            <div id="crop-controls">
+                <p>Adjust the box then click Apply</p>
+                <div class="row">
+                    <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
+                    <button onclick="cancelCrop()" class="btn-danger">❌ Cancel</button>
+                </div>
+            </div>
+            
+            <button onclick="addText()">Aa Add Text</button>
+            <button onclick="deleteObject()" class="btn-danger">🗑️ Delete Selected</button>
+        </div>
+        
+        <!-- Canvas Workspace -->
+        <div class="workspace" id="workspace-container">
+            <canvas id="c"></canvas>
+        </div>
+        
+        <!-- Desktop Right Sidebar -->
+        <div class="right-sidebar">
+            <h3>Effects</h3>
+            <div class="control-group">
+                <label>Opacity</label>
+                <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
+            </div>
+            <div class="control-group">
+                <label>Blur</label>
+                <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
+            </div>
+            <div class="control-group">
+                <label>Pixelate</label>
+                <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+            </div>
+            
+            <h3>Layers</h3>
+            <button onclick="sendBack()">⬇️ Send Backwards</button>
+            <button onclick="bringFront()">⬆️ Bring Forward</button>
+        </div>
+        
+        <!-- Mobile Bottom Panel -->
+        <div class="bottom-panel" id="bottomPanel">
+            <div class="panel-handle" onclick="toggleBottomPanel()">
+                ⚙️ Tools & Effects <span id="panelArrow">▼</span>
+            </div>
+            <div class="panel-content">
+                <div class="section">
+                    <h3>Canvas Size</h3>
+                    <div class="row">
+                        <input type="number" id="canvas-w-mobile" placeholder="Width">
+                        <input type="number" id="canvas-h-mobile" placeholder="Height">
+                    </div>
+                    <button onclick="resizeCanvasMobile()">Resize Canvas</button>
+                </div>
+                
+                <div class="section">
+                    <h3>Tools</h3>
+                    <button onclick="toggleCropMode()">✂️ Crop Image</button>
+                    
+                    <div id="crop-controls-mobile">
+                        <p>Adjust the box then click Apply</p>
+                        <div class="row">
+                            <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
+                            <button onclick="cancelCrop()" class="btn-danger">❌ Cancel</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="addText()">Aa Add Text</button>
+                    <button onclick="deleteObject()" class="btn-danger">🗑️ Delete Selected</button>
+                </div>
+                
+                <div class="section">
+                    <h3>Effects</h3>
+                    <div class="control-group">
+                        <label>Opacity</label>
+                        <input type="range" id="opacity-slider-mobile" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
+                    </div>
+                    <div class="control-group">
+                        <label>Blur</label>
+                        <input type="range" id="blur-slider-mobile" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
+                    </div>
+                    <div class="control-group">
+                        <label>Pixelate</label>
+                        <input type="range" id="pixel-slider-mobile" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3>Layers</h3>
+                    <div class="row">
+                        <button onclick="sendBack()">⬇️ Back</button>
+                        <button onclick="bringFront()">⬆️ Front</button>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <button onclick="addText()">Aa Add Text</button>
-        <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
     </div>
-
-    <div class="workspace" id="workspace-container">
-        <canvas id="c"></canvas>
-    </div>
-
-    <div class="right-sidebar">
-        <h3>Effects</h3>
-        <div class="control-group">
-            <label>Opacity</label>
-            <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
-        </div>
-        <div class="control-group">
-            <label>Blur</label>
-            <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
-        </div>
-        <div class="control-group">
-            <label>Pixelate</label>
-            <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
-        </div>
-        
-        <h3>Layers</h3>
-        <button onclick="sendBack()">⬇️ Send Backwards</button>
-        <button onclick="bringFront()">⬆️ Bring Forward</button>
-    </div>
-
+    
     <script>
         // --- 1. INITIALIZATION & HISTORY ---
         const canvas = new fabric.Canvas('c', {
-            backgroundColor: '#1e1e1e',
+            backgroundColor: '#545352',
             preserveObjectStacking: true
         });
-
-        // Set initial workspace size
+        
+        // Set initial canvas size
         const workspaceEl = document.getElementById('workspace-container');
-        canvas.setDimensions({ width: 800, height: 600 });
+        resizeCanvas();
         updateCanvasInputs();
-
+        
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
+        
+        function resizeCanvas() {
+            const w = workspaceEl.clientWidth;
+            const h = workspaceEl.clientHeight;
+            canvas.setDimensions({ width: Math.max(w - 20, 300), height: Math.max(h - 20, 300) });
+            canvas.renderAll();
+        }
+        
         // History State
         let history = [];
         let historyProcessing = false;
         let mods = -1;
-
-        // Save initial state
+        
         saveHistory();
-
+        
         function saveHistory() {
             if (historyProcessing) return;
             if (mods < history.length - 1) {
@@ -178,11 +425,11 @@
             history.push(JSON.stringify(canvas));
             mods++;
         }
-
+        
         canvas.on('object:modified', saveHistory);
         canvas.on('object:added', (e) => { if(!historyProcessing) saveHistory() });
         canvas.on('object:removed', (e) => { if(!historyProcessing) saveHistory() });
-
+        
         function undo() {
             if (mods > 0) {
                 historyProcessing = true;
@@ -193,7 +440,7 @@
                 });
             }
         }
-
+        
         function redo() {
             if (mods < history.length - 1) {
                 historyProcessing = true;
@@ -204,18 +451,16 @@
                 });
             }
         }
-
-        // Ctrl+Z Support
+        
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault();
                 undo();
             }
         });
-
-
+        
         // --- 2. UPLOAD & AUTO-LAYOUT ---
-        document.getElementById('imgLoader').addEventListener('change', function(e) {
+        function handleImageUpload(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
                 const imgObj = new Image();
@@ -224,29 +469,13 @@
                     const imgInstance = new fabric.Image(imgObj);
                     
                     const isFirstUpload = canvas.getObjects().length === 0;
-
                     if (isFirstUpload) {
-                        // 1. Get Workspace size (Window size minus sidebars)
-                        const screenW = workspaceEl.clientWidth;
-                        const screenH = workspaceEl.clientHeight;
-
-                        // 2. Resize Canvas to match the window exactly (Maximize space)
-                        canvas.setDimensions({ width: screenW, height: screenH });
-                        updateCanvasInputs();
-
-                        // 3. Scale Image to COVER the canvas (like CSS object-fit: cover)
-                        // Or CONTAIN. User said "Occupies all available space", usually means fit to screen.
-                        let scale = Math.min(screenW / imgInstance.width, screenH / imgInstance.height);
-                        
-                        // If you prefer it fills the screen completely (cropping edges):
-                        // scale = Math.max(screenW / imgInstance.width, screenH / imgInstance.height);
-
+                        const scale = Math.min(canvas.width / imgInstance.width, canvas.height / imgInstance.height) * 0.9;
                         imgInstance.scale(scale);
                         canvas.add(imgInstance);
-                        canvas.centerObject(imgInstance); // Center it
+                        canvas.centerObject(imgInstance);
                         imgInstance.setCoords();
                     } else {
-                        // Subsequent images: Scale slightly down and center
                         if (imgInstance.width > canvas.width) {
                             imgInstance.scaleToWidth(canvas.width * 0.5);
                         }
@@ -260,59 +489,71 @@
                 }
             }
             reader.readAsDataURL(e.target.files[0]);
-            e.target.value = ''; 
-        });
-
+            e.target.value = '';
+        }
+        
+        document.getElementById('imgLoader').addEventListener('change', handleImageUpload);
+        document.getElementById('imgLoaderDesktop').addEventListener('change', handleImageUpload);
+        
         // --- 3. CANVAS RESIZE ---
         function updateCanvasInputs() {
             document.getElementById('canvas-w').value = canvas.width;
             document.getElementById('canvas-h').value = canvas.height;
+            document.getElementById('canvas-w-mobile').value = canvas.width;
+            document.getElementById('canvas-h-mobile').value = canvas.height;
         }
-
+        
         function resizeCanvasManual() {
             const w = parseInt(document.getElementById('canvas-w').value);
             const h = parseInt(document.getElementById('canvas-h').value);
-            canvas.setDimensions({ width: w, height: h });
-            canvas.renderAll();
-            saveHistory();
+            if (w && h) {
+                canvas.setDimensions({ width: w, height: h });
+                canvas.renderAll();
+                updateCanvasInputs();
+                saveHistory();
+            }
         }
-
-        // --- 4. MAGNET / SNAPPING (Smart Guides) ---
+        
+        function resizeCanvasMobile() {
+            const w = parseInt(document.getElementById('canvas-w-mobile').value);
+            const h = parseInt(document.getElementById('canvas-h-mobile').value);
+            if (w && h) {
+                canvas.setDimensions({ width: w, height: h });
+                canvas.renderAll();
+                updateCanvasInputs();
+                saveHistory();
+            }
+        }
+        
+        // --- 4. MAGNET / SNAPPING ---
         canvas.on('object:moving', function(e) {
             const obj = e.target;
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const snapDist = 10; // Pixels distance to snap
-
-            // Calculate center points
+            const snapDist = 10;
+            
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
-
-            // Snap to Center Horizontal
+            
             if (Math.abs(obj.left - centerX) < snapDist) {
                 obj.left = centerX;
-                // Draw Blue Vertical Line
                 drawGuideLine(centerX, 0, centerX, canvasHeight);
-            } else if (Math.abs(obj.left - (centerX - obj.width*obj.scaleX/2)) < snapDist) {
-                // Snap center of object to center of canvas logic can vary based on origin
-                // Fabric default origin is center for this setup
             }
-
-            // Snap to Center Vertical
+            
             if (Math.abs(obj.top - centerY) < snapDist) {
                 obj.top = centerY;
                 drawGuideLine(0, centerY, canvasWidth, centerY);
             }
-
-            // Clean up lines if not snapping
+            
             if (Math.abs(obj.left - centerX) > snapDist && Math.abs(obj.top - centerY) > snapDist) {
                 clearGuideLines();
             }
         });
-
+        
         canvas.on('object:modified', clearGuideLines);
-
+        
         let guideLines = [];
+        
         function drawGuideLine(x1, y1, x2, y2) {
             clearGuideLines();
             const line = new fabric.Line([x1, y1, x2, y2], {
@@ -325,30 +566,27 @@
             canvas.add(line);
             guideLines.push(line);
         }
-
+        
         function clearGuideLines() {
             guideLines.forEach(line => canvas.remove(line));
             guideLines = [];
         }
-
-
+        
         // --- 5. CROP SYSTEM ---
         let cropRect = null;
         let imageToCrop = null;
-
+        
         function toggleCropMode() {
             const activeObj = canvas.getActiveObject();
             if (!activeObj || activeObj.type !== 'image') {
                 alert("Please select an image to crop first.");
                 return;
             }
-
             imageToCrop = activeObj;
             
-            // Show Crop Controls
             document.getElementById('crop-controls').style.display = 'block';
-
-            // Add Crop Rect Overlay
+            document.getElementById('crop-controls-mobile').style.display = 'block';
+            
             cropRect = new fabric.Rect({
                 left: imageToCrop.left,
                 top: imageToCrop.top,
@@ -362,76 +600,67 @@
                 cornerStrokeColor: '#6366f1',
                 transparentCorners: false
             });
-
             canvas.add(cropRect);
             canvas.setActiveObject(cropRect);
             canvas.renderAll();
         }
-
+        
         function applyCrop() {
             if (!cropRect || !imageToCrop) return;
-
-            // 1. Calculate Crop Coordinates relative to the Image
-            const left = cropRect.left - imageToCrop.left;
-            const top = cropRect.top - imageToCrop.top;
-            const width = cropRect.getScaledWidth();
-            const height = cropRect.getScaledHeight();
-
-            // 2. Adjust for image scale/rotation is complex. 
-            // We use a trick: ToDataURL of the specific crop area.
             
-            // Hide the crop selection box for the capture
-            cropRect.visible = false; 
+            cropRect.visible = false;
             
-            // Create a temporary canvas or use toDataURL with crop options
             const croppedData = canvas.toDataURL({
                 left: cropRect.left,
                 top: cropRect.top,
-                width: width,
-                height: height,
+                width: cropRect.getScaledWidth(),
+                height: cropRect.getScaledHeight(),
                 format: 'png',
-                multiplier: 2 // High quality
+                multiplier: 2
             });
-
-            // 3. Create new image from the cropped data
+            
             fabric.Image.fromURL(croppedData, function(newImg) {
                 newImg.set({
                     left: cropRect.left,
                     top: cropRect.top
                 });
                 
-                // Remove old image and crop rect
                 canvas.remove(imageToCrop);
                 canvas.remove(cropRect);
                 
-                // Add new cropped image
                 canvas.add(newImg);
                 canvas.setActiveObject(newImg);
                 
-                // Cleanup UI
-                cancelCrop(); // Hides controls
+                cancelCrop();
                 saveHistory();
             });
         }
-
+        
         function cancelCrop() {
             if (cropRect) canvas.remove(cropRect);
             cropRect = null;
             imageToCrop = null;
             document.getElementById('crop-controls').style.display = 'none';
+            document.getElementById('crop-controls-mobile').style.display = 'none';
             canvas.renderAll();
         }
-
+        
         // --- 6. STANDARD TOOLS ---
         function addText() {
             const text = new fabric.IText('Type Here', {
-                left: canvas.width/2, top: canvas.height/2,
-                fontFamily: 'sans-serif', fill: '#fff', fontSize: 40, originX: 'center', originY: 'center'
+                left: canvas.width/2,
+                top: canvas.height/2,
+                fontFamily: 'sans-serif',
+                fill: '#fff',
+                fontSize: 40,
+                originX: 'center',
+                originY: 'center'
             });
             canvas.add(text);
             canvas.setActiveObject(text);
+            saveHistory();
         }
-
+        
         function deleteObject() {
             const active = canvas.getActiveObjects();
             if (active.length) {
@@ -440,12 +669,11 @@
                 saveHistory();
             }
         }
-
-        // Effects
+        
         function applyBlur() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = parseFloat(document.getElementById('blur-slider').value);
+            const val = parseFloat(document.getElementById('blur-slider').value) || parseFloat(document.getElementById('blur-slider-mobile').value);
             obj.filters = obj.filters.filter(f => f.type !== 'Blur');
             if (val > 0) obj.filters.push(new fabric.Image.filters.Blur({ blur: val }));
             obj.applyFilters();
@@ -455,21 +683,40 @@
         function applyPixelate() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = parseInt(document.getElementById('pixel-slider').value);
+            const val = parseInt(document.getElementById('pixel-slider').value) || parseInt(document.getElementById('pixel-slider-mobile').value);
             obj.filters = obj.filters.filter(f => f.type !== 'Pixelate');
             if (val > 1) obj.filters.push(new fabric.Image.filters.Pixelate({ blocksize: val }));
             obj.applyFilters();
             canvas.renderAll();
         }
-
+        
         function changeOpacity() {
             const obj = canvas.getActiveObject();
             if(obj) {
-                obj.set('opacity', parseFloat(document.getElementById('opacity-slider').value));
+                const val = parseFloat(document.getElementById('opacity-slider').value) || parseFloat(document.getElementById('opacity-slider-mobile').value);
+                obj.set('opacity', val);
                 canvas.renderAll();
             }
         }
-
+        
+        function sendBack() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                canvas.sendBackwards(obj);
+                canvas.renderAll();
+                saveHistory();
+            }
+        }
+        
+        function bringFront() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                canvas.bringForward(obj);
+                canvas.renderAll();
+                saveHistory();
+            }
+        }
+        
         function downloadImage() {
             const link = document.createElement('a');
             link.download = 'edited.png';
@@ -477,11 +724,40 @@
             link.click();
         }
         
+        // --- 7. MOBILE PANEL TOGGLE ---
+        function toggleBottomPanel() {
+            const panel = document.getElementById('bottomPanel');
+            const arrow = document.getElementById('panelArrow');
+            panel.classList.toggle('collapsed');
+            arrow.textContent = panel.classList.contains('collapsed') ? '▲' : '▼';
+        }
+        
         // --- KEYBOARD DELETE ---
         window.addEventListener('keydown', (e) => {
             if(e.key === 'Delete') deleteObject();
         });
-
+        
+        // Sync sliders between mobile and desktop
+        document.getElementById('opacity-slider').addEventListener('input', function() {
+            document.getElementById('opacity-slider-mobile').value = this.value;
+        });
+        document.getElementById('opacity-slider-mobile').addEventListener('input', function() {
+            document.getElementById('opacity-slider').value = this.value;
+        });
+        
+        document.getElementById('blur-slider').addEventListener('input', function() {
+            document.getElementById('blur-slider-mobile').value = this.value;
+        });
+        document.getElementById('blur-slider-mobile').addEventListener('input', function() {
+            document.getElementById('blur-slider').value = this.value;
+        });
+        
+        document.getElementById('pixel-slider').addEventListener('input', function() {
+            document.getElementById('pixel-slider-mobile').value = this.value;
+        });
+        document.getElementById('pixel-slider-mobile').addEventListener('input', function() {
+            document.getElementById('pixel-slider').value = this.value;
+        });
     </script>
 </body>
 </html>
