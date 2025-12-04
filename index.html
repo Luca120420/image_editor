@@ -12,13 +12,11 @@
             --text-main: #e0e0e0;
             --accent: #6366f1;
             --border: #333;
-            --toolbar-height: 60px; /* New: for mobile bottom bar */
         }
 
         body {
             margin: 0;
             display: flex;
-            flex-direction: column; /* Changed for mobile layout */
             height: 100vh;
             background-color: var(--bg-dark);
             color: var(--text-main);
@@ -27,13 +25,6 @@
         }
 
         /* --- LAYOUT --- */
-        /* Desktop/Default Layout (Sidebars) */
-        .editor-container {
-            display: flex;
-            flex: 1; /* Allows it to fill the vertical space after the header (if added) */
-            overflow: hidden;
-        }
-
         .sidebar, .right-sidebar {
             width: 260px;
             background-color: var(--panel-bg);
@@ -55,131 +46,21 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Important for full screen canvas */
+            overflow: auto;
             position: relative;
         }
 
-        /* --- MOBILE LAYOUT (Applied for screens up to 768px) --- */
-        @media (max-width: 768px) {
-            .editor-container {
-                flex-direction: column; /* Stack vertically */
-                height: calc(100vh - var(--toolbar-height)); /* Reserve space for the bottom bar */
-            }
-
-            .sidebar, .right-sidebar {
-                width: auto; /* Full width */
-                padding: 10px;
-                border: none;
-                flex: 0 0 auto; /* Don't grow, size based on content */
-            }
-
-            .sidebar { /* Top panel for file/history/size */
-                order: -1; /* Place at the top */
-                border-bottom: 1px solid var(--border);
-                display: none; /* Hide for true mobile UI, only show a simple action bar */
-            }
-
-            .right-sidebar { /* Bottom panel for Effects/Layers */
-                order: 2; /* Place below the workspace */
-                border-top: 1px solid var(--border);
-                display: none; /* Hidden by default, shown by modal/tab */
-            }
-
-            .workspace {
-                order: 1; /* Middle */
-            }
-
-            /* New Mobile Bottom Toolbar (Replaces sidebars for core actions) */
-            .mobile-toolbar {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: var(--toolbar-height);
-                background-color: var(--panel-bg);
-                border-top: 1px solid var(--border);
-                display: flex;
-                justify-content: space-around;
-                align-items: center;
-                z-index: 20;
-                box-shadow: 0 0 10px rgba(0,0,0,0.7);
-            }
-            .mobile-toolbar button {
-                flex: 1;
-                padding: 0; /* Remove padding from buttons inside the toolbar */
-                height: 100%;
-                border-radius: 0;
-                border: none;
-                background-color: transparent;
-                color: var(--text-main);
-                font-size: 10px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            .mobile-toolbar button span {
-                font-size: 18px; /* For the emoji/icon */
-            }
-            .mobile-toolbar button:hover {
-                background-color: #333;
-            }
-
-            /* Full-screen Modal/Panel for secondary controls */
-            #mobile-panel-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: var(--panel-bg);
-                z-index: 30;
-                transform: translateY(100%);
-                transition: transform 0.3s ease-out;
-                overflow-y: auto;
-                padding: 20px;
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-            #mobile-panel-overlay.active {
-                transform: translateY(0);
-            }
-            .panel-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-            }
-            .panel-header h3 { margin: 0; }
-            #close-panel-btn {
-                background: none;
-                border: none;
-                color: var(--text-main);
-                font-size: 24px;
-                cursor: pointer;
-                padding: 5px;
-                line-height: 1;
-                width: auto;
-            }
-            
-            /* Apply mobile styles to controls inside the panel */
-            .mobile-panel-content .row { flex-direction: column; gap: 10px; }
-            .mobile-panel-content .row input { width: 100%; }
-        }
-
-
-        /* --- UI ELEMENTS (Modified for better mobile touch targets) --- */
+        /* --- UI ELEMENTS --- */
         h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
         
-        button, .btn-upload, #close-panel-btn {
+        button, .btn-upload {
             background-color: #333;
             color: white;
             border: 1px solid #444;
-            padding: 12px; /* Increased padding for better touch */
+            padding: 10px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px; /* Increased font size */
+            font-size: 13px;
             transition: all 0.2s;
             text-align: center;
             display: block;
@@ -191,23 +72,15 @@
         button:hover { background-color: var(--accent); border-color: var(--accent); }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .row { display: flex; gap: 10px; } /* Increased gap */
-        .row input { 
-            width: 50%; 
-            background: #333; 
-            border: 1px solid #444; 
-            color: white; 
-            padding: 10px; /* Increased padding */
-            border-radius: 4px;
-            box-sizing: border-box; /* Ensure padding doesn't break layout */
-        }
+        .row { display: flex; gap: 5px; }
+        .row input { width: 50%; background: #333; border: 1px solid #444; color: white; padding: 5px; border-radius: 4px; }
 
-        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 15px 0; } /* Increased margin */
+        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 10px 0; }
         input[type="file"] { display: none; }
 
-        /* Crop Mode Controls */
+        /* Crop Mode Overlay */
         #crop-controls {
-            display: none;
+            display: none; /* Hidden by default */
             background: #2a2a2a;
             padding: 10px;
             border-radius: 8px;
@@ -219,132 +92,62 @@
 </head>
 <body>
 
-    <div class="editor-container">
-        <div class="sidebar" id="desktop-sidebar">
-            <h3>File</h3>
-            <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
-            <input type="file" id="imgLoader" accept="image/*">
-            <button onclick="downloadImage()" style="background-color: #059669;">💾 Export Image</button>
+    <div class="sidebar">
+        <h3>File</h3>
+        <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
+        <input type="file" id="imgLoader" accept="image/*">
+        <button onclick="downloadImage()" style="background-color: #059669;">💾 Export Image</button>
 
-            <h3>Canvas Size</h3>
+        <h3>Canvas Size</h3>
+        <div class="row">
+            <input type="number" id="canvas-w" placeholder="W">
+            <input type="number" id="canvas-h" placeholder="H">
+        </div>
+        <button onclick="resizeCanvasManual()">Resize Canvas</button>
+
+        <h3>History</h3>
+        <div class="row">
+            <button onclick="undo()">↩ Undo</button>
+            <button onclick="redo()">↪ Redo</button>
+        </div>
+
+        <h3>Tools</h3>
+        <button onclick="toggleCropMode()">✂️ Crop Image</button>
+        
+        <div id="crop-controls">
+            <p style="font-size: 12px; margin:0 0 5px 0;">Adjust the box then click Apply</p>
             <div class="row">
-                <input type="number" id="canvas-w" placeholder="W">
-                <input type="number" id="canvas-h" placeholder="H">
-            </div>
-            <button onclick="resizeCanvasManual()">Resize Canvas</button>
-
-            <h3>History</h3>
-            <div class="row">
-                <button onclick="undo()">↩ Undo</button>
-                <button onclick="redo()">↪ Redo</button>
+                <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
+                <button onclick="cancelCrop()" style="background-color: #ef4444;">❌ Cancel</button>
             </div>
         </div>
 
-        <div class="workspace" id="workspace-container">
-            <canvas id="c"></canvas>
-        </div>
-
-        <div class="right-sidebar" id="desktop-right-sidebar">
-            <h3>Tools</h3>
-            <button onclick="toggleCropMode()">✂️ Crop Image</button>
-            
-            <div id="crop-controls">
-                <p style="font-size: 12px; margin:0 0 5px 0;">Adjust the box then click Apply</p>
-                <div class="row">
-                    <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
-                    <button onclick="cancelCrop()" style="background-color: #ef4444;">❌ Cancel</button>
-                </div>
-            </div>
-
-            <button onclick="addText()">Aa Add Text</button>
-            <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
-            
-            <h3>Effects</h3>
-            <div class="control-group">
-                <label>Opacity</label>
-                <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
-            </div>
-            <div class="control-group">
-                <label>Blur</label>
-                <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
-            </div>
-            <div class="control-group">
-                <label>Pixelate</label>
-                <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
-            </div>
-            
-            <h3>Layers</h3>
-            <button onclick="sendBack()">⬇️ Send Backwards</button>
-            <button onclick="bringFront()">⬆️ Bring Forward</button>
-        </div>
+        <button onclick="addText()">Aa Add Text</button>
+        <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
     </div>
 
-
-    <div class="mobile-toolbar">
-        <label for="imgLoader">
-            <button style="border: none;">
-                <span>📂</span>
-                Upload
-            </button>
-        </label>
-        <button onclick="toggleCropMode()">
-            <span>✂️</span>
-            Crop
-        </button>
-        <button onclick="addText()">
-            <span>Aa</span>
-            Text
-        </button>
-        <button onclick="downloadImage()">
-            <span>💾</span>
-            Export
-        </button>
-        <button onclick="openMobilePanel()">
-            <span>⚙️</span>
-            More
-        </button>
+    <div class="workspace" id="workspace-container">
+        <canvas id="c"></canvas>
     </div>
 
-    <div id="mobile-panel-overlay">
-        <div class="panel-header">
-            <h3>More Tools & Effects</h3>
-            <button id="close-panel-btn" onclick="closeMobilePanel()">✕</button>
+    <div class="right-sidebar">
+        <h3>Effects</h3>
+        <div class="control-group">
+            <label>Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
         </div>
-        <div class="mobile-panel-content">
-            
-            <h3>Canvas Size</h3>
-            <div class="row">
-                <input type="number" id="mobile-canvas-w" placeholder="W" value="800">
-                <input type="number" id="mobile-canvas-h" placeholder="H" value="600">
-            </div>
-            <button onclick="resizeCanvasMobile()">Resize Canvas</button>
-
-            <h3>History</h3>
-            <div class="row">
-                <button onclick="undo()">↩ Undo</button>
-                <button onclick="redo()">↪ Redo</button>
-            </div>
-            
-            <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
-            
-            <h3>Effects</h3>
-            <div class="control-group">
-                <label>Opacity</label>
-                <input type="range" id="mobile-opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
-            </div>
-            <div class="control-group">
-                <label>Blur</label>
-                <input type="range" id="mobile-blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
-            </div>
-            <div class="control-group">
-                <label>Pixelate</label>
-                <input type="range" id="mobile-pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
-            </div>
-            
-            <h3>Layers</h3>
-            <button onclick="sendBack()">⬇️ Send Backwards</button>
-            <button onclick="bringFront()">⬆️ Bring Forward</button>
+        <div class="control-group">
+            <label>Blur</label>
+            <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
         </div>
+        <div class="control-group">
+            <label>Pixelate</label>
+            <input type="range" id="pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+        </div>
+        
+        <h3>Layers</h3>
+        <button onclick="sendBack()">⬇️ Send Backwards</button>
+        <button onclick="bringFront()">⬆️ Bring Forward</button>
     </div>
 
     <script>
@@ -354,37 +157,10 @@
             preserveObjectStacking: true
         });
 
+        // Set initial workspace size
         const workspaceEl = document.getElementById('workspace-container');
-        const canvasWInput = document.getElementById('canvas-w');
-        const canvasHInput = document.getElementById('canvas-h');
-        const mobileCanvasWInput = document.getElementById('mobile-canvas-w');
-        const mobileCanvasHInput = document.getElementById('mobile-canvas-h');
-
-        // Initial/Resize Setup
-        function calculateCanvasDimensions() {
-            const isMobile = window.innerWidth <= 768;
-            const screenW = workspaceEl.clientWidth;
-            // Subtract toolbar height on mobile
-            const screenH = isMobile 
-                ? workspaceEl.clientHeight
-                : workspaceEl.clientHeight; 
-            
-            // Set canvas size to fill the available workspace
-            canvas.setDimensions({ width: screenW, height: screenH });
-            canvas.renderAll();
-        }
-
-        // Run on load and window resize
-        window.addEventListener('load', calculateCanvasDimensions);
-        window.addEventListener('resize', () => {
-            calculateCanvasDimensions();
-            // Also update input values when the screen size changes significantly
-            updateCanvasInputs(); 
-        });
-
-        // Set initial workspace size (This is the default for desktop before resize runs)
         canvas.setDimensions({ width: 800, height: 600 });
-        calculateCanvasDimensions(); // Initial mobile check
+        updateCanvasInputs();
 
         // History State
         let history = [];
@@ -450,15 +226,24 @@
                     const isFirstUpload = canvas.getObjects().length === 0;
 
                     if (isFirstUpload) {
-                        // Fit to screen (CONTAIN)
-                        const screenW = canvas.width;
-                        const screenH = canvas.height;
+                        // 1. Get Workspace size (Window size minus sidebars)
+                        const screenW = workspaceEl.clientWidth;
+                        const screenH = workspaceEl.clientHeight;
 
+                        // 2. Resize Canvas to match the window exactly (Maximize space)
+                        canvas.setDimensions({ width: screenW, height: screenH });
+                        updateCanvasInputs();
+
+                        // 3. Scale Image to COVER the canvas (like CSS object-fit: cover)
+                        // Or CONTAIN. User said "Occupies all available space", usually means fit to screen.
                         let scale = Math.min(screenW / imgInstance.width, screenH / imgInstance.height);
                         
+                        // If you prefer it fills the screen completely (cropping edges):
+                        // scale = Math.max(screenW / imgInstance.width, screenH / imgInstance.height);
+
                         imgInstance.scale(scale);
                         canvas.add(imgInstance);
-                        canvas.centerObject(imgInstance); 
+                        canvas.centerObject(imgInstance); // Center it
                         imgInstance.setCoords();
                     } else {
                         // Subsequent images: Scale slightly down and center
@@ -480,78 +265,56 @@
 
         // --- 3. CANVAS RESIZE ---
         function updateCanvasInputs() {
-            canvasWInput.value = canvas.width;
-            canvasHInput.value = canvas.height;
-            mobileCanvasWInput.value = canvas.width;
-            mobileCanvasHInput.value = canvas.height;
+            document.getElementById('canvas-w').value = canvas.width;
+            document.getElementById('canvas-h').value = canvas.height;
         }
 
-        function resizeCanvas(w, h) {
+        function resizeCanvasManual() {
+            const w = parseInt(document.getElementById('canvas-w').value);
+            const h = parseInt(document.getElementById('canvas-h').value);
             canvas.setDimensions({ width: w, height: h });
             canvas.renderAll();
-            updateCanvasInputs();
             saveHistory();
         }
 
-        function resizeCanvasManual() { // Desktop
-            const w = parseInt(canvasWInput.value);
-            const h = parseInt(canvasHInput.value);
-            if (!isNaN(w) && !isNaN(h)) resizeCanvas(w, h);
-        }
-
-        function resizeCanvasMobile() { // Mobile Panel
-            const w = parseInt(mobileCanvasWInput.value);
-            const h = parseInt(mobileCanvasHInput.value);
-            if (!isNaN(w) && !isNaN(h)) resizeCanvas(w, h);
-            closeMobilePanel(); // Close panel after action
-        }
-        
-        updateCanvasInputs(); // Call on load
-
         // --- 4. MAGNET / SNAPPING (Smart Guides) ---
-        // (Existing logic is fine, no changes needed for mobile)
         canvas.on('object:moving', function(e) {
             const obj = e.target;
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const snapDist = 10; 
+            const snapDist = 10; // Pixels distance to snap
 
+            // Calculate center points
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
-
-            let isSnapped = false;
-            clearGuideLines(); // Clear previous lines
 
             // Snap to Center Horizontal
             if (Math.abs(obj.left - centerX) < snapDist) {
                 obj.left = centerX;
+                // Draw Blue Vertical Line
                 drawGuideLine(centerX, 0, centerX, canvasHeight);
-                isSnapped = true;
+            } else if (Math.abs(obj.left - (centerX - obj.width*obj.scaleX/2)) < snapDist) {
+                // Snap center of object to center of canvas logic can vary based on origin
+                // Fabric default origin is center for this setup
             }
 
             // Snap to Center Vertical
             if (Math.abs(obj.top - centerY) < snapDist) {
                 obj.top = centerY;
                 drawGuideLine(0, centerY, canvasWidth, centerY);
-                isSnapped = true;
             }
 
-            // IMPORTANT: Rerender to show the guide line *during* the drag
-            if (isSnapped) {
-                 canvas.renderAll();
+            // Clean up lines if not snapping
+            if (Math.abs(obj.left - centerX) > snapDist && Math.abs(obj.top - centerY) > snapDist) {
+                clearGuideLines();
             }
         });
 
         canvas.on('object:modified', clearGuideLines);
-        canvas.on('mouse:up', clearGuideLines); // Clean up after releasing object
 
         let guideLines = [];
         function drawGuideLine(x1, y1, x2, y2) {
-            // Check if line already exists to avoid duplicates
-            if (guideLines.some(l => l.left === x1 && l.top === y1 && l.width === x2 - x1 && l.height === y2 - y1)) {
-                return;
-            }
-
+            clearGuideLines();
             const line = new fabric.Line([x1, y1, x2, y2], {
                 stroke: '#00d2ff',
                 strokeWidth: 1,
@@ -560,14 +323,12 @@
                 strokeDashArray: [5, 5]
             });
             canvas.add(line);
-            line.sendToBack(); // Keep it behind objects
             guideLines.push(line);
         }
 
         function clearGuideLines() {
             guideLines.forEach(line => canvas.remove(line));
             guideLines = [];
-            canvas.renderAll();
         }
 
 
@@ -577,13 +338,6 @@
 
         function toggleCropMode() {
             const activeObj = canvas.getActiveObject();
-            
-            // If already in crop mode, cancel it first
-            if(cropRect) {
-                cancelCrop();
-                return;
-            }
-
             if (!activeObj || activeObj.type !== 'image') {
                 alert("Please select an image to crop first.");
                 return;
@@ -593,13 +347,6 @@
             
             // Show Crop Controls
             document.getElementById('crop-controls').style.display = 'block';
-
-            // Disable selection of other objects while cropping
-            canvas.forEachObject(obj => {
-                if (obj !== imageToCrop) obj.selectable = false;
-            });
-            imageToCrop.selectable = false;
-
 
             // Add Crop Rect Overlay
             cropRect = new fabric.Rect({
@@ -613,47 +360,44 @@
                 strokeDashArray: [5, 5],
                 cornerColor: 'white',
                 cornerStrokeColor: '#6366f1',
-                transparentCorners: false,
-                lockMovementX: false,
-                lockMovementY: false,
-                lockRotation: true,
-                hasControls: true, // Allow resizing the crop box
-                hasBorders: true
+                transparentCorners: false
             });
 
             canvas.add(cropRect);
             canvas.setActiveObject(cropRect);
-            canvas.bringToFront(cropRect);
             canvas.renderAll();
         }
 
         function applyCrop() {
             if (!cropRect || !imageToCrop) return;
 
-            // 1. Calculate Crop Coordinates relative to the Image (in Canvas coordinates)
-            const rectCenter = cropRect.getCenterPoint();
-            const rectWidth = cropRect.getScaledWidth();
-            const rectHeight = cropRect.getScaledHeight();
+            // 1. Calculate Crop Coordinates relative to the Image
+            const left = cropRect.left - imageToCrop.left;
+            const top = cropRect.top - imageToCrop.top;
+            const width = cropRect.getScaledWidth();
+            const height = cropRect.getScaledHeight();
 
-            // 2. Capture the area
+            // 2. Adjust for image scale/rotation is complex. 
+            // We use a trick: ToDataURL of the specific crop area.
+            
+            // Hide the crop selection box for the capture
+            cropRect.visible = false; 
+            
+            // Create a temporary canvas or use toDataURL with crop options
             const croppedData = canvas.toDataURL({
-                left: rectCenter.x - rectWidth / 2,
-                top: rectCenter.y - rectHeight / 2,
-                width: rectWidth,
-                height: rectHeight,
+                left: cropRect.left,
+                top: cropRect.top,
+                width: width,
+                height: height,
                 format: 'png',
-                multiplier: 2
+                multiplier: 2 // High quality
             });
 
             // 3. Create new image from the cropped data
             fabric.Image.fromURL(croppedData, function(newImg) {
                 newImg.set({
-                    left: rectCenter.x,
-                    top: rectCenter.y,
-                    originX: 'center', // Set new image origin to center for easier positioning
-                    originY: 'center',
-                    scaleX: 0.5, // The multiplier: 2 makes the new image larger, so scale it back down
-                    scaleY: 0.5,
+                    left: cropRect.left,
+                    top: cropRect.top
                 });
                 
                 // Remove old image and crop rect
@@ -664,9 +408,8 @@
                 canvas.add(newImg);
                 canvas.setActiveObject(newImg);
                 
-                // Cleanup UI & enable object selection again
-                canvas.forEachObject(obj => obj.selectable = true);
-                cancelCrop(); 
+                // Cleanup UI
+                cancelCrop(); // Hides controls
                 saveHistory();
             });
         }
@@ -676,10 +419,6 @@
             cropRect = null;
             imageToCrop = null;
             document.getElementById('crop-controls').style.display = 'none';
-            
-            // Re-enable selection for all objects
-            canvas.forEachObject(obj => obj.selectable = true);
-            
             canvas.renderAll();
         }
 
@@ -701,58 +440,33 @@
                 saveHistory();
             }
         }
-        
-        // Effects (Update to read from both desktop and mobile sliders)
-        function getSliderValue(id) {
-            const desktopSlider = document.getElementById(id);
-            const mobileSlider = document.getElementById('mobile-' + id);
-            
-            if (window.innerWidth <= 768) {
-                return parseFloat(mobileSlider.value);
-            } else {
-                return parseFloat(desktopSlider.value);
-            }
-        }
-        
-        function setSliderValue(id, value) {
-            const desktopSlider = document.getElementById(id);
-            const mobileSlider = document.getElementById('mobile-' + id);
-            
-            desktopSlider.value = value;
-            mobileSlider.value = value;
-        }
 
+        // Effects
         function applyBlur() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = getSliderValue('blur-slider');
-            
+            const val = parseFloat(document.getElementById('blur-slider').value);
             obj.filters = obj.filters.filter(f => f.type !== 'Blur');
             if (val > 0) obj.filters.push(new fabric.Image.filters.Blur({ blur: val }));
             obj.applyFilters();
             canvas.renderAll();
-            setSliderValue('blur-slider', val);
         }
         
         function applyPixelate() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = getSliderValue('pixel-slider');
-            
+            const val = parseInt(document.getElementById('pixel-slider').value);
             obj.filters = obj.filters.filter(f => f.type !== 'Pixelate');
             if (val > 1) obj.filters.push(new fabric.Image.filters.Pixelate({ blocksize: val }));
             obj.applyFilters();
             canvas.renderAll();
-            setSliderValue('pixel-slider', val);
         }
 
         function changeOpacity() {
             const obj = canvas.getActiveObject();
             if(obj) {
-                const val = getSliderValue('opacity-slider');
-                obj.set('opacity', val);
+                obj.set('opacity', parseFloat(document.getElementById('opacity-slider').value));
                 canvas.renderAll();
-                setSliderValue('opacity-slider', val);
             }
         }
 
@@ -763,35 +477,9 @@
             link.click();
         }
         
-        // Layers
-        function sendBack() {
-            const activeObj = canvas.getActiveObject();
-            if(activeObj) activeObj.sendBackwards();
-            canvas.renderAll();
-        }
-
-        function bringFront() {
-            const activeObj = canvas.getActiveObject();
-            if(activeObj) activeObj.bringForward();
-            canvas.renderAll();
-        }
-        
-        // --- MOBILE PANEL CONTROLS ---
-        function openMobilePanel() {
-            document.getElementById('mobile-panel-overlay').classList.add('active');
-            updateCanvasInputs(); // Ensure mobile inputs are up to date
-        }
-
-        function closeMobilePanel() {
-            document.getElementById('mobile-panel-overlay').classList.remove('active');
-        }
-
         // --- KEYBOARD DELETE ---
         window.addEventListener('keydown', (e) => {
-            if(e.key === 'Delete' || e.key === 'Backspace') {
-                deleteObject();
-                e.preventDefault();
-            }
+            if(e.key === 'Delete') deleteObject();
         });
 
     </script>
