@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pro Editor: Crop & Magnet</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
@@ -12,305 +12,253 @@
             --text-main: #e0e0e0;
             --accent: #6366f1;
             --border: #333;
+            --toolbar-height: 60px; /* New: for mobile bottom bar */
         }
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+
         body {
             margin: 0;
+            display: flex;
+            flex-direction: column; /* Changed for mobile layout */
+            height: 100vh;
             background-color: var(--bg-dark);
             color: var(--text-main);
             font-family: 'Inter', system-ui, sans-serif;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
         }
-        
-        /* Mobile Layout */
-        .container {
+
+        /* --- LAYOUT --- */
+        /* Desktop/Default Layout (Sidebars) */
+        .editor-container {
+            display: flex;
+            flex: 1; /* Allows it to fill the vertical space after the header (if added) */
+            overflow: hidden;
+        }
+
+        .sidebar, .right-sidebar {
+            width: 260px;
+            background-color: var(--panel-bg);
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            height: 100dvh;
+            padding: 15px;
+            gap: 15px;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         
-        /* Top Toolbar */
-        .top-toolbar {
-            background-color: var(--panel-bg);
-            border-bottom: 1px solid var(--border);
-            padding: 8px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            flex-shrink: 0;
-        }
-        
-        .top-toolbar button {
-            padding: 8px 12px;
-            background-color: #333;
-            color: white;
-            border: 1px solid #444;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        
-        .top-toolbar button:active {
-            background-color: var(--accent);
-        }
-        
-        /* Canvas Area */
+        .sidebar { border-right: 1px solid var(--border); }
+        .right-sidebar { border-left: 1px solid var(--border); }
+
         .workspace {
             flex: 1;
             background-color: #0d0d0d;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            overflow: hidden; /* Important for full screen canvas */
             position: relative;
-            touch-action: none;
         }
-        
-        /* Bottom Panel */
-        .bottom-panel {
-            background-color: var(--panel-bg);
-            border-top: 1px solid var(--border);
-            max-height: 45vh;
-            overflow-y: auto;
-            flex-shrink: 0;
-            transition: transform 0.3s ease;
+
+        /* --- MOBILE LAYOUT (Applied for screens up to 768px) --- */
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column; /* Stack vertically */
+                height: calc(100vh - var(--toolbar-height)); /* Reserve space for the bottom bar */
+            }
+
+            .sidebar, .right-sidebar {
+                width: auto; /* Full width */
+                padding: 10px;
+                border: none;
+                flex: 0 0 auto; /* Don't grow, size based on content */
+            }
+
+            .sidebar { /* Top panel for file/history/size */
+                order: -1; /* Place at the top */
+                border-bottom: 1px solid var(--border);
+                display: none; /* Hide for true mobile UI, only show a simple action bar */
+            }
+
+            .right-sidebar { /* Bottom panel for Effects/Layers */
+                order: 2; /* Place below the workspace */
+                border-top: 1px solid var(--border);
+                display: none; /* Hidden by default, shown by modal/tab */
+            }
+
+            .workspace {
+                order: 1; /* Middle */
+            }
+
+            /* New Mobile Bottom Toolbar (Replaces sidebars for core actions) */
+            .mobile-toolbar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: var(--toolbar-height);
+                background-color: var(--panel-bg);
+                border-top: 1px solid var(--border);
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                z-index: 20;
+                box-shadow: 0 0 10px rgba(0,0,0,0.7);
+            }
+            .mobile-toolbar button {
+                flex: 1;
+                padding: 0; /* Remove padding from buttons inside the toolbar */
+                height: 100%;
+                border-radius: 0;
+                border: none;
+                background-color: transparent;
+                color: var(--text-main);
+                font-size: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .mobile-toolbar button span {
+                font-size: 18px; /* For the emoji/icon */
+            }
+            .mobile-toolbar button:hover {
+                background-color: #333;
+            }
+
+            /* Full-screen Modal/Panel for secondary controls */
+            #mobile-panel-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: var(--panel-bg);
+                z-index: 30;
+                transform: translateY(100%);
+                transition: transform 0.3s ease-out;
+                overflow-y: auto;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+            #mobile-panel-overlay.active {
+                transform: translateY(0);
+            }
+            .panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            .panel-header h3 { margin: 0; }
+            #close-panel-btn {
+                background: none;
+                border: none;
+                color: var(--text-main);
+                font-size: 24px;
+                cursor: pointer;
+                padding: 5px;
+                line-height: 1;
+                width: auto;
+            }
+            
+            /* Apply mobile styles to controls inside the panel */
+            .mobile-panel-content .row { flex-direction: column; gap: 10px; }
+            .mobile-panel-content .row input { width: 100%; }
         }
+
+
+        /* --- UI ELEMENTS (Modified for better mobile touch targets) --- */
+        h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
         
-        .bottom-panel.collapsed {
-            transform: translateY(calc(100% - 48px));
-        }
-        
-        .panel-handle {
-            padding: 12px;
-            text-align: center;
-            background-color: #2a2a2a;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border);
-            user-select: none;
-        }
-        
-        .panel-content {
-            padding: 15px;
-        }
-        
-        .section {
-            margin-bottom: 20px;
-        }
-        
-        .section h3 {
-            margin: 0 0 10px 0;
-            font-size: 13px;
-            text-transform: uppercase;
-            color: #888;
-        }
-        
-        button, .btn-upload {
+        button, .btn-upload, #close-panel-btn {
             background-color: #333;
             color: white;
             border: 1px solid #444;
-            padding: 12px;
+            padding: 12px; /* Increased padding for better touch */
             border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px; /* Increased font size */
             transition: all 0.2s;
             text-align: center;
             display: block;
             width: 100%;
-            margin-bottom: 8px;
-        }
-        
-        button:active {
-            background-color: var(--accent);
-            border-color: var(--accent);
-        }
-        
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-        
-        .row input {
-            background: #333;
-            border: 1px solid #444;
-            color: white;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        input[type="range"] {
-            width: 100%;
-            accent-color: var(--accent);
-            margin: 8px 0;
-        }
-        
-        input[type="file"] {
-            display: none;
-        }
-        
-        .control-group {
-            margin-bottom: 15px;
-        }
-        
-        .control-group label {
-            display: block;
-            font-size: 12px;
+            box-sizing: border-box;
             margin-bottom: 5px;
-            color: #aaa;
         }
-        
+
+        button:hover { background-color: var(--accent); border-color: var(--accent); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .row { display: flex; gap: 10px; } /* Increased gap */
+        .row input { 
+            width: 50%; 
+            background: #333; 
+            border: 1px solid #444; 
+            color: white; 
+            padding: 10px; /* Increased padding */
+            border-radius: 4px;
+            box-sizing: border-box; /* Ensure padding doesn't break layout */
+        }
+
+        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 15px 0; } /* Increased margin */
+        input[type="file"] { display: none; }
+
+        /* Crop Mode Controls */
         #crop-controls {
             display: none;
             background: #2a2a2a;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--accent);
             margin-bottom: 15px;
         }
-        
-        #crop-controls p {
-            font-size: 12px;
-            margin: 0 0 8px 0;
-        }
-        
-        .btn-success {
-            background-color: #059669 !important;
-        }
-        
-        .btn-danger {
-            background-color: #ef4444 !important;
-        }
-        
-        /* Desktop View */
-        @media (min-width: 768px) {
-            .container {
-                flex-direction: row;
-            }
-            
-            .top-toolbar {
-                display: none;
-            }
-            
-            .sidebar, .right-sidebar {
-                width: 260px;
-                background-color: var(--panel-bg);
-                display: flex;
-                flex-direction: column;
-                padding: 15px;
-                gap: 15px;
-                overflow-y: auto;
-                z-index: 10;
-                box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            }
-            
-            .sidebar {
-                border-right: 1px solid var(--border);
-            }
-            
-            .right-sidebar {
-                border-left: 1px solid var(--border);
-            }
-            
-            .bottom-panel {
-                display: none;
-            }
-            
-            .workspace {
-                flex: 1;
-            }
-            
-            button:hover {
-                background-color: var(--accent);
-                border-color: var(--accent);
-            }
-        }
-        
-        /* Hide scrollbar */
-        .top-toolbar::-webkit-scrollbar {
-            height: 4px;
-        }
-        
-        .top-toolbar::-webkit-scrollbar-track {
-            background: var(--panel-bg);
-        }
-        
-        .top-toolbar::-webkit-scrollbar-thumb {
-            background: #444;
-            border-radius: 2px;
-        }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Mobile Top Toolbar -->
-        <div class="top-toolbar">
-            <label for="imgLoader" class="btn-upload" style="margin: 0;">📂 Upload</label>
-            <input type="file" id="imgLoader" accept="image/*">
-            <button onclick="toggleBottomPanel()">⚙️ Tools</button>
-            <button onclick="undo()">↩️ Undo</button>
-            <button onclick="redo()">↪️ Redo</button>
-            <button onclick="downloadImage()">💾 Export</button>
-        </div>
-        
-        <!-- Desktop Left Sidebar -->
-        <div class="sidebar">
+
+    <div class="editor-container">
+        <div class="sidebar" id="desktop-sidebar">
             <h3>File</h3>
-            <label for="imgLoaderDesktop" class="btn-upload">📂 Upload Image</label>
-            <input type="file" id="imgLoaderDesktop" accept="image/*">
-            <button onclick="downloadImage()" class="btn-success">💾 Export Image</button>
-            
+            <label for="imgLoader" class="btn-upload">📂 Upload Image</label>
+            <input type="file" id="imgLoader" accept="image/*">
+            <button onclick="downloadImage()" style="background-color: #059669;">💾 Export Image</button>
+
             <h3>Canvas Size</h3>
             <div class="row">
                 <input type="number" id="canvas-w" placeholder="W">
                 <input type="number" id="canvas-h" placeholder="H">
             </div>
             <button onclick="resizeCanvasManual()">Resize Canvas</button>
-            
+
             <h3>History</h3>
             <div class="row">
                 <button onclick="undo()">↩ Undo</button>
                 <button onclick="redo()">↪ Redo</button>
             </div>
-            
+        </div>
+
+        <div class="workspace" id="workspace-container">
+            <canvas id="c"></canvas>
+        </div>
+
+        <div class="right-sidebar" id="desktop-right-sidebar">
             <h3>Tools</h3>
             <button onclick="toggleCropMode()">✂️ Crop Image</button>
             
             <div id="crop-controls">
-                <p>Adjust the box then click Apply</p>
+                <p style="font-size: 12px; margin:0 0 5px 0;">Adjust the box then click Apply</p>
                 <div class="row">
                     <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
-                    <button onclick="cancelCrop()" class="btn-danger">❌ Cancel</button>
+                    <button onclick="cancelCrop()" style="background-color: #ef4444;">❌ Cancel</button>
                 </div>
             </div>
-            
+
             <button onclick="addText()">Aa Add Text</button>
-            <button onclick="deleteObject()" class="btn-danger">🗑️ Delete Selected</button>
-        </div>
-        
-        <!-- Canvas Workspace -->
-        <div class="workspace" id="workspace-container">
-            <canvas id="c"></canvas>
-        </div>
-        
-        <!-- Desktop Right Sidebar -->
-        <div class="right-sidebar">
+            <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
+            
             <h3>Effects</h3>
             <div class="control-group">
                 <label>Opacity</label>
@@ -329,94 +277,123 @@
             <button onclick="sendBack()">⬇️ Send Backwards</button>
             <button onclick="bringFront()">⬆️ Bring Forward</button>
         </div>
-        
-        <!-- Mobile Bottom Panel -->
-        <div class="bottom-panel" id="bottomPanel">
-            <div class="panel-handle" onclick="toggleBottomPanel()">
-                ⚙️ Tools & Effects <span id="panelArrow">▼</span>
+    </div>
+
+
+    <div class="mobile-toolbar">
+        <label for="imgLoader">
+            <button style="border: none;">
+                <span>📂</span>
+                Upload
+            </button>
+        </label>
+        <button onclick="toggleCropMode()">
+            <span>✂️</span>
+            Crop
+        </button>
+        <button onclick="addText()">
+            <span>Aa</span>
+            Text
+        </button>
+        <button onclick="downloadImage()">
+            <span>💾</span>
+            Export
+        </button>
+        <button onclick="openMobilePanel()">
+            <span>⚙️</span>
+            More
+        </button>
+    </div>
+
+    <div id="mobile-panel-overlay">
+        <div class="panel-header">
+            <h3>More Tools & Effects</h3>
+            <button id="close-panel-btn" onclick="closeMobilePanel()">✕</button>
+        </div>
+        <div class="mobile-panel-content">
+            
+            <h3>Canvas Size</h3>
+            <div class="row">
+                <input type="number" id="mobile-canvas-w" placeholder="W" value="800">
+                <input type="number" id="mobile-canvas-h" placeholder="H" value="600">
             </div>
-            <div class="panel-content">
-                <div class="section">
-                    <h3>Canvas Size</h3>
-                    <div class="row">
-                        <input type="number" id="canvas-w-mobile" placeholder="Width">
-                        <input type="number" id="canvas-h-mobile" placeholder="Height">
-                    </div>
-                    <button onclick="resizeCanvasMobile()">Resize Canvas</button>
-                </div>
-                
-                <div class="section">
-                    <h3>Tools</h3>
-                    <button onclick="toggleCropMode()">✂️ Crop Image</button>
-                    
-                    <div id="crop-controls-mobile">
-                        <p>Adjust the box then click Apply</p>
-                        <div class="row">
-                            <button onclick="applyCrop()" style="background-color: var(--accent);">✅ Apply</button>
-                            <button onclick="cancelCrop()" class="btn-danger">❌ Cancel</button>
-                        </div>
-                    </div>
-                    
-                    <button onclick="addText()">Aa Add Text</button>
-                    <button onclick="deleteObject()" class="btn-danger">🗑️ Delete Selected</button>
-                </div>
-                
-                <div class="section">
-                    <h3>Effects</h3>
-                    <div class="control-group">
-                        <label>Opacity</label>
-                        <input type="range" id="opacity-slider-mobile" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
-                    </div>
-                    <div class="control-group">
-                        <label>Blur</label>
-                        <input type="range" id="blur-slider-mobile" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
-                    </div>
-                    <div class="control-group">
-                        <label>Pixelate</label>
-                        <input type="range" id="pixel-slider-mobile" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h3>Layers</h3>
-                    <div class="row">
-                        <button onclick="sendBack()">⬇️ Back</button>
-                        <button onclick="bringFront()">⬆️ Front</button>
-                    </div>
-                </div>
+            <button onclick="resizeCanvasMobile()">Resize Canvas</button>
+
+            <h3>History</h3>
+            <div class="row">
+                <button onclick="undo()">↩ Undo</button>
+                <button onclick="redo()">↪ Redo</button>
             </div>
+            
+            <button onclick="deleteObject()" style="background-color: #ef4444;">🗑️ Delete Selected</button>
+            
+            <h3>Effects</h3>
+            <div class="control-group">
+                <label>Opacity</label>
+                <input type="range" id="mobile-opacity-slider" min="0" max="1" step="0.05" value="1" oninput="changeOpacity()">
+            </div>
+            <div class="control-group">
+                <label>Blur</label>
+                <input type="range" id="mobile-blur-slider" min="0" max="1" step="0.05" value="0" oninput="applyBlur()">
+            </div>
+            <div class="control-group">
+                <label>Pixelate</label>
+                <input type="range" id="mobile-pixel-slider" min="1" max="20" step="1" value="1" oninput="applyPixelate()">
+            </div>
+            
+            <h3>Layers</h3>
+            <button onclick="sendBack()">⬇️ Send Backwards</button>
+            <button onclick="bringFront()">⬆️ Bring Forward</button>
         </div>
     </div>
-    
+
     <script>
         // --- 1. INITIALIZATION & HISTORY ---
         const canvas = new fabric.Canvas('c', {
-            backgroundColor: '#545352',
+            backgroundColor: '#1e1e1e',
             preserveObjectStacking: true
         });
-        
-        // Set initial canvas size
+
         const workspaceEl = document.getElementById('workspace-container');
-        resizeCanvas();
-        updateCanvasInputs();
-        
-        // Handle window resize
-        window.addEventListener('resize', resizeCanvas);
-        
-        function resizeCanvas() {
-            const w = workspaceEl.clientWidth;
-            const h = workspaceEl.clientHeight;
-            canvas.setDimensions({ width: Math.max(w - 20, 300), height: Math.max(h - 20, 300) });
+        const canvasWInput = document.getElementById('canvas-w');
+        const canvasHInput = document.getElementById('canvas-h');
+        const mobileCanvasWInput = document.getElementById('mobile-canvas-w');
+        const mobileCanvasHInput = document.getElementById('mobile-canvas-h');
+
+        // Initial/Resize Setup
+        function calculateCanvasDimensions() {
+            const isMobile = window.innerWidth <= 768;
+            const screenW = workspaceEl.clientWidth;
+            // Subtract toolbar height on mobile
+            const screenH = isMobile 
+                ? workspaceEl.clientHeight
+                : workspaceEl.clientHeight; 
+            
+            // Set canvas size to fill the available workspace
+            canvas.setDimensions({ width: screenW, height: screenH });
             canvas.renderAll();
         }
-        
+
+        // Run on load and window resize
+        window.addEventListener('load', calculateCanvasDimensions);
+        window.addEventListener('resize', () => {
+            calculateCanvasDimensions();
+            // Also update input values when the screen size changes significantly
+            updateCanvasInputs(); 
+        });
+
+        // Set initial workspace size (This is the default for desktop before resize runs)
+        canvas.setDimensions({ width: 800, height: 600 });
+        calculateCanvasDimensions(); // Initial mobile check
+
         // History State
         let history = [];
         let historyProcessing = false;
         let mods = -1;
-        
+
+        // Save initial state
         saveHistory();
-        
+
         function saveHistory() {
             if (historyProcessing) return;
             if (mods < history.length - 1) {
@@ -425,11 +402,11 @@
             history.push(JSON.stringify(canvas));
             mods++;
         }
-        
+
         canvas.on('object:modified', saveHistory);
         canvas.on('object:added', (e) => { if(!historyProcessing) saveHistory() });
         canvas.on('object:removed', (e) => { if(!historyProcessing) saveHistory() });
-        
+
         function undo() {
             if (mods > 0) {
                 historyProcessing = true;
@@ -440,7 +417,7 @@
                 });
             }
         }
-        
+
         function redo() {
             if (mods < history.length - 1) {
                 historyProcessing = true;
@@ -451,16 +428,18 @@
                 });
             }
         }
-        
+
+        // Ctrl+Z Support
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault();
                 undo();
             }
         });
-        
+
+
         // --- 2. UPLOAD & AUTO-LAYOUT ---
-        function handleImageUpload(e) {
+        document.getElementById('imgLoader').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
                 const imgObj = new Image();
@@ -469,13 +448,20 @@
                     const imgInstance = new fabric.Image(imgObj);
                     
                     const isFirstUpload = canvas.getObjects().length === 0;
+
                     if (isFirstUpload) {
-                        const scale = Math.min(canvas.width / imgInstance.width, canvas.height / imgInstance.height) * 0.9;
+                        // Fit to screen (CONTAIN)
+                        const screenW = canvas.width;
+                        const screenH = canvas.height;
+
+                        let scale = Math.min(screenW / imgInstance.width, screenH / imgInstance.height);
+                        
                         imgInstance.scale(scale);
                         canvas.add(imgInstance);
-                        canvas.centerObject(imgInstance);
+                        canvas.centerObject(imgInstance); 
                         imgInstance.setCoords();
                     } else {
+                        // Subsequent images: Scale slightly down and center
                         if (imgInstance.width > canvas.width) {
                             imgInstance.scaleToWidth(canvas.width * 0.5);
                         }
@@ -489,73 +475,83 @@
                 }
             }
             reader.readAsDataURL(e.target.files[0]);
-            e.target.value = '';
-        }
-        
-        document.getElementById('imgLoader').addEventListener('change', handleImageUpload);
-        document.getElementById('imgLoaderDesktop').addEventListener('change', handleImageUpload);
-        
+            e.target.value = ''; 
+        });
+
         // --- 3. CANVAS RESIZE ---
         function updateCanvasInputs() {
-            document.getElementById('canvas-w').value = canvas.width;
-            document.getElementById('canvas-h').value = canvas.height;
-            document.getElementById('canvas-w-mobile').value = canvas.width;
-            document.getElementById('canvas-h-mobile').value = canvas.height;
+            canvasWInput.value = canvas.width;
+            canvasHInput.value = canvas.height;
+            mobileCanvasWInput.value = canvas.width;
+            mobileCanvasHInput.value = canvas.height;
+        }
+
+        function resizeCanvas(w, h) {
+            canvas.setDimensions({ width: w, height: h });
+            canvas.renderAll();
+            updateCanvasInputs();
+            saveHistory();
+        }
+
+        function resizeCanvasManual() { // Desktop
+            const w = parseInt(canvasWInput.value);
+            const h = parseInt(canvasHInput.value);
+            if (!isNaN(w) && !isNaN(h)) resizeCanvas(w, h);
+        }
+
+        function resizeCanvasMobile() { // Mobile Panel
+            const w = parseInt(mobileCanvasWInput.value);
+            const h = parseInt(mobileCanvasHInput.value);
+            if (!isNaN(w) && !isNaN(h)) resizeCanvas(w, h);
+            closeMobilePanel(); // Close panel after action
         }
         
-        function resizeCanvasManual() {
-            const w = parseInt(document.getElementById('canvas-w').value);
-            const h = parseInt(document.getElementById('canvas-h').value);
-            if (w && h) {
-                canvas.setDimensions({ width: w, height: h });
-                canvas.renderAll();
-                updateCanvasInputs();
-                saveHistory();
-            }
-        }
-        
-        function resizeCanvasMobile() {
-            const w = parseInt(document.getElementById('canvas-w-mobile').value);
-            const h = parseInt(document.getElementById('canvas-h-mobile').value);
-            if (w && h) {
-                canvas.setDimensions({ width: w, height: h });
-                canvas.renderAll();
-                updateCanvasInputs();
-                saveHistory();
-            }
-        }
-        
-        // --- 4. MAGNET / SNAPPING ---
+        updateCanvasInputs(); // Call on load
+
+        // --- 4. MAGNET / SNAPPING (Smart Guides) ---
+        // (Existing logic is fine, no changes needed for mobile)
         canvas.on('object:moving', function(e) {
             const obj = e.target;
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const snapDist = 10;
-            
+            const snapDist = 10; 
+
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
-            
+
+            let isSnapped = false;
+            clearGuideLines(); // Clear previous lines
+
+            // Snap to Center Horizontal
             if (Math.abs(obj.left - centerX) < snapDist) {
                 obj.left = centerX;
                 drawGuideLine(centerX, 0, centerX, canvasHeight);
+                isSnapped = true;
             }
-            
+
+            // Snap to Center Vertical
             if (Math.abs(obj.top - centerY) < snapDist) {
                 obj.top = centerY;
                 drawGuideLine(0, centerY, canvasWidth, centerY);
+                isSnapped = true;
             }
-            
-            if (Math.abs(obj.left - centerX) > snapDist && Math.abs(obj.top - centerY) > snapDist) {
-                clearGuideLines();
+
+            // IMPORTANT: Rerender to show the guide line *during* the drag
+            if (isSnapped) {
+                 canvas.renderAll();
             }
         });
-        
+
         canvas.on('object:modified', clearGuideLines);
-        
+        canvas.on('mouse:up', clearGuideLines); // Clean up after releasing object
+
         let guideLines = [];
-        
         function drawGuideLine(x1, y1, x2, y2) {
-            clearGuideLines();
+            // Check if line already exists to avoid duplicates
+            if (guideLines.some(l => l.left === x1 && l.top === y1 && l.width === x2 - x1 && l.height === y2 - y1)) {
+                return;
+            }
+
             const line = new fabric.Line([x1, y1, x2, y2], {
                 stroke: '#00d2ff',
                 strokeWidth: 1,
@@ -564,29 +560,48 @@
                 strokeDashArray: [5, 5]
             });
             canvas.add(line);
+            line.sendToBack(); // Keep it behind objects
             guideLines.push(line);
         }
-        
+
         function clearGuideLines() {
             guideLines.forEach(line => canvas.remove(line));
             guideLines = [];
+            canvas.renderAll();
         }
-        
+
+
         // --- 5. CROP SYSTEM ---
         let cropRect = null;
         let imageToCrop = null;
-        
+
         function toggleCropMode() {
             const activeObj = canvas.getActiveObject();
+            
+            // If already in crop mode, cancel it first
+            if(cropRect) {
+                cancelCrop();
+                return;
+            }
+
             if (!activeObj || activeObj.type !== 'image') {
                 alert("Please select an image to crop first.");
                 return;
             }
+
             imageToCrop = activeObj;
             
+            // Show Crop Controls
             document.getElementById('crop-controls').style.display = 'block';
-            document.getElementById('crop-controls-mobile').style.display = 'block';
-            
+
+            // Disable selection of other objects while cropping
+            canvas.forEachObject(obj => {
+                if (obj !== imageToCrop) obj.selectable = false;
+            });
+            imageToCrop.selectable = false;
+
+
+            // Add Crop Rect Overlay
             cropRect = new fabric.Rect({
                 left: imageToCrop.left,
                 top: imageToCrop.top,
@@ -598,69 +613,86 @@
                 strokeDashArray: [5, 5],
                 cornerColor: 'white',
                 cornerStrokeColor: '#6366f1',
-                transparentCorners: false
+                transparentCorners: false,
+                lockMovementX: false,
+                lockMovementY: false,
+                lockRotation: true,
+                hasControls: true, // Allow resizing the crop box
+                hasBorders: true
             });
+
             canvas.add(cropRect);
             canvas.setActiveObject(cropRect);
+            canvas.bringToFront(cropRect);
             canvas.renderAll();
         }
-        
+
         function applyCrop() {
             if (!cropRect || !imageToCrop) return;
-            
-            cropRect.visible = false;
-            
+
+            // 1. Calculate Crop Coordinates relative to the Image (in Canvas coordinates)
+            const rectCenter = cropRect.getCenterPoint();
+            const rectWidth = cropRect.getScaledWidth();
+            const rectHeight = cropRect.getScaledHeight();
+
+            // 2. Capture the area
             const croppedData = canvas.toDataURL({
-                left: cropRect.left,
-                top: cropRect.top,
-                width: cropRect.getScaledWidth(),
-                height: cropRect.getScaledHeight(),
+                left: rectCenter.x - rectWidth / 2,
+                top: rectCenter.y - rectHeight / 2,
+                width: rectWidth,
+                height: rectHeight,
                 format: 'png',
                 multiplier: 2
             });
-            
+
+            // 3. Create new image from the cropped data
             fabric.Image.fromURL(croppedData, function(newImg) {
                 newImg.set({
-                    left: cropRect.left,
-                    top: cropRect.top
+                    left: rectCenter.x,
+                    top: rectCenter.y,
+                    originX: 'center', // Set new image origin to center for easier positioning
+                    originY: 'center',
+                    scaleX: 0.5, // The multiplier: 2 makes the new image larger, so scale it back down
+                    scaleY: 0.5,
                 });
                 
+                // Remove old image and crop rect
                 canvas.remove(imageToCrop);
                 canvas.remove(cropRect);
                 
+                // Add new cropped image
                 canvas.add(newImg);
                 canvas.setActiveObject(newImg);
                 
-                cancelCrop();
+                // Cleanup UI & enable object selection again
+                canvas.forEachObject(obj => obj.selectable = true);
+                cancelCrop(); 
                 saveHistory();
             });
         }
-        
+
         function cancelCrop() {
             if (cropRect) canvas.remove(cropRect);
             cropRect = null;
             imageToCrop = null;
             document.getElementById('crop-controls').style.display = 'none';
-            document.getElementById('crop-controls-mobile').style.display = 'none';
+            
+            // Re-enable selection for all objects
+            canvas.forEachObject(obj => obj.selectable = true);
+            
             canvas.renderAll();
         }
-        
+
         // --- 6. STANDARD TOOLS ---
         function addText() {
             const text = new fabric.IText('Type Here', {
-                left: canvas.width/2,
-                top: canvas.height/2,
-                fontFamily: 'sans-serif',
-                fill: '#fff',
-                fontSize: 40,
-                originX: 'center',
-                originY: 'center'
+                left: canvas.width/2, top: canvas.height/2,
+                fontFamily: 'sans-serif', fill: '#fff', fontSize: 40, originX: 'center', originY: 'center'
             });
             canvas.add(text);
             canvas.setActiveObject(text);
-            saveHistory();
         }
-        
+
         function deleteObject() {
             const active = canvas.getActiveObjects();
             if (active.length) {
@@ -670,53 +702,60 @@
             }
         }
         
+        // Effects (Update to read from both desktop and mobile sliders)
+        function getSliderValue(id) {
+            const desktopSlider = document.getElementById(id);
+            const mobileSlider = document.getElementById('mobile-' + id);
+            
+            if (window.innerWidth <= 768) {
+                return parseFloat(mobileSlider.value);
+            } else {
+                return parseFloat(desktopSlider.value);
+            }
+        }
+        
+        function setSliderValue(id, value) {
+            const desktopSlider = document.getElementById(id);
+            const mobileSlider = document.getElementById('mobile-' + id);
+            
+            desktopSlider.value = value;
+            mobileSlider.value = value;
+        }
+
         function applyBlur() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = parseFloat(document.getElementById('blur-slider').value) || parseFloat(document.getElementById('blur-slider-mobile').value);
+            const val = getSliderValue('blur-slider');
+            
             obj.filters = obj.filters.filter(f => f.type !== 'Blur');
             if (val > 0) obj.filters.push(new fabric.Image.filters.Blur({ blur: val }));
             obj.applyFilters();
             canvas.renderAll();
+            setSliderValue('blur-slider', val);
         }
         
         function applyPixelate() {
             const obj = canvas.getActiveObject();
             if (!obj || obj.type !== 'image') return;
-            const val = parseInt(document.getElementById('pixel-slider').value) || parseInt(document.getElementById('pixel-slider-mobile').value);
+            const val = getSliderValue('pixel-slider');
+            
             obj.filters = obj.filters.filter(f => f.type !== 'Pixelate');
             if (val > 1) obj.filters.push(new fabric.Image.filters.Pixelate({ blocksize: val }));
             obj.applyFilters();
             canvas.renderAll();
+            setSliderValue('pixel-slider', val);
         }
-        
+
         function changeOpacity() {
             const obj = canvas.getActiveObject();
             if(obj) {
-                const val = parseFloat(document.getElementById('opacity-slider').value) || parseFloat(document.getElementById('opacity-slider-mobile').value);
+                const val = getSliderValue('opacity-slider');
                 obj.set('opacity', val);
                 canvas.renderAll();
+                setSliderValue('opacity-slider', val);
             }
         }
-        
-        function sendBack() {
-            const obj = canvas.getActiveObject();
-            if (obj) {
-                canvas.sendBackwards(obj);
-                canvas.renderAll();
-                saveHistory();
-            }
-        }
-        
-        function bringFront() {
-            const obj = canvas.getActiveObject();
-            if (obj) {
-                canvas.bringForward(obj);
-                canvas.renderAll();
-                saveHistory();
-            }
-        }
-        
+
         function downloadImage() {
             const link = document.createElement('a');
             link.download = 'edited.png';
@@ -724,40 +763,37 @@
             link.click();
         }
         
-        // --- 7. MOBILE PANEL TOGGLE ---
-        function toggleBottomPanel() {
-            const panel = document.getElementById('bottomPanel');
-            const arrow = document.getElementById('panelArrow');
-            panel.classList.toggle('collapsed');
-            arrow.textContent = panel.classList.contains('collapsed') ? '▲' : '▼';
+        // Layers
+        function sendBack() {
+            const activeObj = canvas.getActiveObject();
+            if(activeObj) activeObj.sendBackwards();
+            canvas.renderAll();
+        }
+
+        function bringFront() {
+            const activeObj = canvas.getActiveObject();
+            if(activeObj) activeObj.bringForward();
+            canvas.renderAll();
         }
         
+        // --- MOBILE PANEL CONTROLS ---
+        function openMobilePanel() {
+            document.getElementById('mobile-panel-overlay').classList.add('active');
+            updateCanvasInputs(); // Ensure mobile inputs are up to date
+        }
+
+        function closeMobilePanel() {
+            document.getElementById('mobile-panel-overlay').classList.remove('active');
+        }
+
         // --- KEYBOARD DELETE ---
         window.addEventListener('keydown', (e) => {
-            if(e.key === 'Delete') deleteObject();
+            if(e.key === 'Delete' || e.key === 'Backspace') {
+                deleteObject();
+                e.preventDefault();
+            }
         });
-        
-        // Sync sliders between mobile and desktop
-        document.getElementById('opacity-slider').addEventListener('input', function() {
-            document.getElementById('opacity-slider-mobile').value = this.value;
-        });
-        document.getElementById('opacity-slider-mobile').addEventListener('input', function() {
-            document.getElementById('opacity-slider').value = this.value;
-        });
-        
-        document.getElementById('blur-slider').addEventListener('input', function() {
-            document.getElementById('blur-slider-mobile').value = this.value;
-        });
-        document.getElementById('blur-slider-mobile').addEventListener('input', function() {
-            document.getElementById('blur-slider').value = this.value;
-        });
-        
-        document.getElementById('pixel-slider').addEventListener('input', function() {
-            document.getElementById('pixel-slider-mobile').value = this.value;
-        });
-        document.getElementById('pixel-slider-mobile').addEventListener('input', function() {
-            document.getElementById('pixel-slider').value = this.value;
-        });
+
     </script>
 </body>
 </html>
