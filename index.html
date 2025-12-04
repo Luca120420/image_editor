@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Editor: Zoom & Advanced Snapping</title>
+    <title>Pro Editor: High Contrast Canvas</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
         :root {
@@ -42,13 +42,24 @@
 
         .workspace {
             flex: 1;
-            background-color: #0d0d0d;
+            /* Changed background to a slightly lighter dark gray to contrast with the shadow */
+            background-color: #1a1a1a; 
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Changed to hidden to handle custom pan/zoom */
+            overflow: hidden; 
             position: relative;
         }
+
+        /* --- NEW: Make the canvas stand out --- */
+        /* Fabric.js wraps the actual canvas tag in a wrapper class called .canvas-container */
+        .canvas-container {
+            /* Add a strong shadow to make it lift off the page */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            /* Optional: A very subtle border */
+            border: 1px solid #333;
+        }
+
 
         /* --- UI ELEMENTS --- */
         h3 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #888; }
@@ -88,7 +99,6 @@
             margin-bottom: 15px;
         }
         
-        /* Helper Info */
         .controls-info {
             font-size: 11px;
             color: #666;
@@ -169,7 +179,8 @@
     <script>
         // --- 1. INITIALIZATION & HISTORY ---
         const canvas = new fabric.Canvas('c', {
-            backgroundColor: '#1e1e1e',
+            // Changed background color to WHITE for high contrast
+            backgroundColor: '#ffffff', 
             preserveObjectStacking: true,
             selection: true
         });
@@ -177,7 +188,9 @@
         // Set initial workspace size
         const workspaceEl = document.getElementById('workspace-container');
         // Initial fit to screen
-        canvas.setDimensions({ width: workspaceEl.clientWidth, height: workspaceEl.clientHeight });
+        canvas.setDimensions({ width: workspaceEl.clientWidth * 0.8, height: workspaceEl.clientHeight * 0.8 });
+        // Center the canvas initially
+        workspaceEl.scrollTo((workspaceEl.scrollWidth - workspaceEl.clientWidth) / 2, (workspaceEl.scrollHeight - workspaceEl.clientHeight) / 2);
         updateCanvasInputs();
 
         // History State
@@ -243,6 +256,13 @@
                 imgObj.onload = function() {
                     const imgInstance = new fabric.Image(imgObj);
                     
+                    // If first upload, resize canvas to fit image (with some padding)
+                    if (canvas.getObjects().length === 0) {
+                         // Optional: Resize canvas to fit the first image texture
+                         // canvas.setDimensions({ width: imgInstance.width, height: imgInstance.height });
+                         // updateCanvasInputs();
+                    }
+
                     if (imgInstance.width > canvas.width) {
                         imgInstance.scaleToWidth(canvas.width * 0.8);
                     }
@@ -274,21 +294,16 @@
             saveHistory();
         }
 
-        // --- 4. ZOOM & PAN SYSTEM (NEW) ---
+        // --- 4. ZOOM & PAN SYSTEM ---
         
         // Mouse Wheel Zoom
         canvas.on('mouse:wheel', function(opt) {
             const delta = opt.e.deltaY;
             let zoom = canvas.getZoom();
             zoom *= 0.999 ** delta;
-            
-            // Limit zoom
             if (zoom > 20) zoom = 20;
             if (zoom < 0.1) zoom = 0.1;
-            
-            // Zoom to cursor point
             canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-            
             opt.e.preventDefault();
             opt.e.stopPropagation();
         });
@@ -302,7 +317,7 @@
             const evt = opt.e;
             if (evt.altKey === true) {
                 isDragging = true;
-                this.selection = false; // Disable group selection while panning
+                this.selection = false;
                 lastPosX = evt.clientX;
                 lastPosY = evt.clientY;
             }
@@ -323,77 +338,59 @@
         canvas.on('mouse:up', function(opt) {
             this.setViewportTransform(this.viewportTransform);
             this.isDragging = false;
-            this.selection = true; // Re-enable selection
+            this.selection = true;
         });
 
         function resetZoom() {
             canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
         }
 
-        // --- 5. ADVANCED MAGNET / SNAPPING (UPDATED) ---
+        // --- 5. ADVANCED MAGNET / SNAPPING ---
         
         canvas.on('object:moving', function (e) {
             const obj = e.target;
-            const snapRange = 10; // distance in pixels to snap
-            
-            // Clear existing guidelines
+            const snapRange = 10; 
             clearGuideLines();
 
-            // Variables to track if we snapped
             let snappedV = false;
             let snappedH = false;
-
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
 
-            // Get current object boundaries (handling rotation roughly via bounding rect)
             const objRect = obj.getBoundingRect(true); 
-            const objHalfW = objRect.width / 2;
-            const objHalfH = objRect.height / 2;
-            const objCenterX = objRect.left + objHalfW;
-            const objCenterY = objRect.top + objHalfH;
+            const objCenterX = objRect.left + objRect.width / 2;
+            const objCenterY = objRect.top + objRect.height / 2;
 
-            // --- 1. Canvas Border Snapping ---
-            
-            // Left Border
+            // --- Canvas Border Snapping ---
             if (Math.abs(objRect.left) < snapRange) {
-                obj.set({ left: 0 + (obj.left - objRect.left) }); // adjust based on origin
+                obj.set({ left: 0 + (obj.left - objRect.left) }); 
                 drawGuideLine(0, 0, 0, canvasHeight);
                 snappedV = true;
-            }
-            // Right Border
-            else if (Math.abs(objRect.left + objRect.width - canvasWidth) < snapRange) {
+            } else if (Math.abs(objRect.left + objRect.width - canvasWidth) < snapRange) {
                 obj.set({ left: canvasWidth - objRect.width + (obj.left - objRect.left) });
                 drawGuideLine(canvasWidth, 0, canvasWidth, canvasHeight);
                 snappedV = true;
-            }
-            // Horizontal Center
-            else if (Math.abs(objCenterX - canvasWidth / 2) < snapRange) {
+            } else if (Math.abs(objCenterX - canvasWidth / 2) < snapRange) {
                 obj.set({ left: canvasWidth / 2 - (objCenterX - obj.left) });
                 drawGuideLine(canvasWidth / 2, 0, canvasWidth / 2, canvasHeight);
                 snappedV = true;
             }
 
-            // Top Border
             if (Math.abs(objRect.top) < snapRange) {
                 obj.set({ top: 0 + (obj.top - objRect.top) });
                 drawGuideLine(0, 0, canvasWidth, 0);
                 snappedH = true;
-            }
-            // Bottom Border
-            else if (Math.abs(objRect.top + objRect.height - canvasHeight) < snapRange) {
+            } else if (Math.abs(objRect.top + objRect.height - canvasHeight) < snapRange) {
                 obj.set({ top: canvasHeight - objRect.height + (obj.top - objRect.top) });
                 drawGuideLine(0, canvasHeight, canvasWidth, canvasHeight);
                 snappedH = true;
-            }
-            // Vertical Center
-            else if (Math.abs(objCenterY - canvasHeight / 2) < snapRange) {
+            } else if (Math.abs(objCenterY - canvasHeight / 2) < snapRange) {
                 obj.set({ top: canvasHeight / 2 - (objCenterY - obj.top) });
                 drawGuideLine(0, canvasHeight / 2, canvasWidth, canvasHeight / 2);
                 snappedH = true;
             }
 
-            // --- 2. Object to Object Snapping ---
+            // --- Object to Object Snapping ---
             if (!snappedV || !snappedH) {
                 canvas.getObjects().forEach(target => {
                     if (target === obj || target.type === 'line' || target.type === 'rect' && target.excludeFromSnapping) return;
@@ -402,50 +399,36 @@
                     const targetCenterX = targetRect.left + targetRect.width / 2;
                     const targetCenterY = targetRect.top + targetRect.height / 2;
 
-                    // Vertical Alignments (Left/Center/Right)
                     if (!snappedV) {
-                        // Snap Left to Left
                         if (Math.abs(objRect.left - targetRect.left) < snapRange) {
                             obj.set({ left: targetRect.left + (obj.left - objRect.left) });
                             drawGuideLine(targetRect.left, 0, targetRect.left, canvasHeight);
                             snappedV = true;
-                        }
-                        // Snap Left to Right
-                        else if (Math.abs(objRect.left - (targetRect.left + targetRect.width)) < snapRange) {
+                        } else if (Math.abs(objRect.left - (targetRect.left + targetRect.width)) < snapRange) {
                             obj.set({ left: targetRect.left + targetRect.width + (obj.left - objRect.left) });
                             drawGuideLine(targetRect.left + targetRect.width, 0, targetRect.left + targetRect.width, canvasHeight);
                             snappedV = true;
-                        }
-                        // Snap Right to Right
-                        else if (Math.abs((objRect.left + objRect.width) - (targetRect.left + targetRect.width)) < snapRange) {
+                        } else if (Math.abs((objRect.left + objRect.width) - (targetRect.left + targetRect.width)) < snapRange) {
                              obj.set({ left: targetRect.left + targetRect.width - objRect.width + (obj.left - objRect.left) });
                              drawGuideLine(targetRect.left + targetRect.width, 0, targetRect.left + targetRect.width, canvasHeight);
                              snappedV = true;
-                        }
-                        // Snap Centers
-                        else if (Math.abs(objCenterX - targetCenterX) < snapRange) {
+                        } else if (Math.abs(objCenterX - targetCenterX) < snapRange) {
                             obj.set({ left: targetCenterX - (objCenterX - obj.left) });
                             drawGuideLine(targetCenterX, 0, targetCenterX, canvasHeight);
                             snappedV = true;
                         }
                     }
 
-                    // Horizontal Alignments (Top/Center/Bottom)
                     if (!snappedH) {
-                        // Snap Top to Top
                         if (Math.abs(objRect.top - targetRect.top) < snapRange) {
                             obj.set({ top: targetRect.top + (obj.top - objRect.top) });
                             drawGuideLine(0, targetRect.top, canvasWidth, targetRect.top);
                             snappedH = true;
-                        }
-                        // Snap Bottom to Bottom
-                        else if (Math.abs((objRect.top + objRect.height) - (targetRect.top + targetRect.height)) < snapRange) {
+                        } else if (Math.abs((objRect.top + objRect.height) - (targetRect.top + targetRect.height)) < snapRange) {
                              obj.set({ top: targetRect.top + targetRect.height - objRect.height + (obj.top - objRect.top) });
                              drawGuideLine(0, targetRect.top + targetRect.height, canvasWidth, targetRect.top + targetRect.height);
                              snappedH = true;
-                        }
-                         // Snap Centers
-                        else if (Math.abs(objCenterY - targetCenterY) < snapRange) {
+                        } else if (Math.abs(objCenterY - targetCenterY) < snapRange) {
                             obj.set({ top: targetCenterY - (objCenterY - obj.top) });
                             drawGuideLine(0, targetCenterY, canvasWidth, targetCenterY);
                             snappedH = true;
@@ -478,12 +461,11 @@
         }
 
 
-        // --- 6. CROP SYSTEM (Tweaked for Zoom) ---
+        // --- 6. CROP SYSTEM ---
         let cropRect = null;
         let imageToCrop = null;
 
         function toggleCropMode() {
-            // Note: Best practice for crop is to reset zoom to avoid calculation headaches
             resetZoom(); 
 
             const activeObj = canvas.getActiveObject();
@@ -507,7 +489,7 @@
                 cornerColor: 'white',
                 cornerStrokeColor: '#6366f1',
                 transparentCorners: false,
-                excludeFromSnapping: true // Custom prop to ignore in snapping loop
+                excludeFromSnapping: true 
             });
 
             canvas.add(cropRect);
@@ -525,7 +507,6 @@
 
             cropRect.visible = false;
             
-            // Generate cropped data
             const croppedData = canvas.toDataURL({
                 left: cropRect.left,
                 top: cropRect.top,
@@ -563,7 +544,7 @@
         function addText() {
             const text = new fabric.IText('Type Here', {
                 left: canvas.width/2, top: canvas.height/2,
-                fontFamily: 'sans-serif', fill: '#fff', fontSize: 40, originX: 'center', originY: 'center'
+                fontFamily: 'sans-serif', fill: '#111', fontSize: 40, originX: 'center', originY: 'center'
             });
             canvas.add(text);
             canvas.setActiveObject(text);
@@ -618,7 +599,6 @@
         }
 
         function downloadImage() {
-            // Reset zoom before export so we get the full canvas
             const vpt = canvas.viewportTransform;
             canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
             
@@ -627,7 +607,6 @@
             link.href = canvas.toDataURL({ format: 'png', multiplier: 2 });
             link.click();
 
-            // Restore zoom
             canvas.setViewportTransform(vpt);
         }
         
